@@ -1900,6 +1900,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!srcTable || !srcTbody) { window.print(); return; }
 
     const allRows      = Array.from(srcTbody.querySelectorAll("tr"));
+    if (allRows.length === 0) { window.print(); return; }
+
     const allPrintDivs = printArea ? Array.from(printArea.querySelectorAll(":scope > div")) : [];
     const headerBlock  = allPrintDivs[0] || null;
     const addressBlock = allPrintDivs[1] || null;
@@ -1908,22 +1910,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const hsnLabel     = printArea ? printArea.querySelector("h4") : null;
     const hsnTable     = hsnLabel ? hsnLabel.nextElementSibling : null;
 
-    // ── Measure everything at EXACT print content width using a sandbox ────────
-    // A4 = 210mm, 15mm margins each side → content width = 180mm
-    // At 96 CSS-px/inch: 267mm (usable height) = ~1009px
-    const MM_TO_PX     = 96 / 25.4;
-    const USABLE_H_PX  = Math.round(267 * MM_TO_PX); // 1009px
+    // ── Measure everything at EXACT print content width using sandbox ─────────
+    // A4 = 210mm wide x 297mm high.
+    // 15mm margins on left and right -> content width = 180mm.
+    // 15mm margins top & bottom -> 267mm theoretical height.
+    // We use a safe target printable height of 235mm (~888px at 96dpi) to account
+    // for printer hardware unprintable borders, browser header/footers, and line-heights.
+    const MM_TO_PX    = 96 / 25.4;
+    const USABLE_H_PX = Math.round(235 * MM_TO_PX); // ~888px
 
     const sandbox = document.createElement("div");
     sandbox.style.cssText = [
       "position:absolute", "left:-99999px", "top:0",
-      "width:calc(210mm - 30mm)",   // 180mm = exact print content width
+      "width:calc(210mm - 30mm)",   // 180mm exact print content width
       "visibility:hidden", "overflow:visible",
       "font-family:'DM Sans',sans-serif", "font-size:11px"
     ].join(";");
     document.body.appendChild(sandbox);
 
-    // Measure fixed chrome blocks at print width
     function measureBlock(el) {
       if (!el) return 0;
       const c = el.cloneNode(true);
@@ -1933,20 +1937,27 @@ document.addEventListener("DOMContentLoaded", () => {
       return h;
     }
 
-    const headerH  = measureBlock(headerBlock)  + 24; // +24 for margin below
+    const headerH  = measureBlock(headerBlock)  + 24; // + margin-bottom
     const addressH = measureBlock(addressBlock) + 24;
-    const BANNER_H = 32; // "Continued on page X" row
-    const MINI_H   = 48; // continuation mini-header
 
-    // Measure all summary sections together
+    // Measure mini continuation header
+    const tempMini = document.createElement("div");
+    tempMini.className = "inv-continuation-header";
+    tempMini.innerHTML = "<span><b>TEST</b> — Invoice (Continued)</span><span>Page 1 of 2</span>";
+    sandbox.appendChild(tempMini);
+    const miniHeaderH = tempMini.offsetHeight + 12;
+    tempMini.remove();
+
+    // Measure all summary blocks together
     const summaryH = measureBlock(summaryBlock)
                    + measureBlock(hsnLabel)
                    + measureBlock(hsnTable)
                    + measureBlock(sigBlock)
-                   + 60; // extra breathing room
+                   + 40;
 
-    // Measure each row at print width using a real table context
+    // Measure table header, rows, bfTr, and cTr in a table context
     const measTable = document.createElement("table");
+    measTable.className = "inv-print-table";
     measTable.style.cssText = "width:100%;border-collapse:collapse;font-size:11px;";
     if (srcThead) measTable.appendChild(srcThead.cloneNode(true));
     const measTbody = document.createElement("tbody");
@@ -1955,36 +1966,77 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const theadH = (measTable.querySelector("thead") || {}).offsetHeight || 36;
 
+    // Measure dummy Brought Forward and Continued rows
+    const dummyBf = document.createElement("tr");
+    dummyBf.className = "inv-row-bf";
+    dummyBf.innerHTML = "<td colspan='20'>← Carried forward</td>";
+    measTbody.appendChild(dummyBf);
+    const bfTrH = dummyBf.offsetHeight || 28;
+    dummyBf.remove();
+
+    const dummyC = document.createElement("tr");
+    dummyC.className = "inv-row-continues";
+    dummyC.innerHTML = "<td colspan='20'>Continued →</td>";
+    measTbody.appendChild(dummyC);
+    const cTrH = dummyC.offsetHeight || 28;
+    dummyC.remove();
+
+    // Measure exact height of every item row
     const rowHeights = allRows.map(tr => {
       const clone = tr.cloneNode(true);
       measTbody.appendChild(clone);
-      const h = Math.max(clone.offsetHeight, 28);
+      const h = clone.offsetHeight || 28;
       clone.remove();
       return h;
     });
 
-    sandbox.remove(); // clean up measurement sandbox
+    sandbox.remove(); // Clean up sandbox
 
-    // ── Bin-pack rows into A4 pages ───────────────────────────────────────────
-    const budget1 = USABLE_H_PX - headerH - addressH - theadH - BANNER_H;
-    const budgetN = USABLE_H_PX - MINI_H  - theadH   - BANNER_H;
-
+    // ── Bin-pack rows into pages deterministically ────────────────────────────
     const pages = [];
-    let cur = [], curH = 0, firstPage = true;
-    for (let i = 0; i < allRows.length; i++) {
-      const rh     = rowHeights[i];
-      const isLast = (i === allRows.length - 1);
-      const budget = firstPage ? budget1 : budgetN;
-      // On the last row, also reserve space for the summary block
-      const needed = rh + (isLast ? summaryH : 0);
-      if (cur.length > 0 && curH + needed > budget) {
-        pages.push(cur); cur = []; curH = 0; firstPage = false;
-      }
-      cur.push(i); curH += rh;
-    }
-    if (cur.length > 0) pages.push(cur);
+    let curPageRows = [];
+    let curH = 0;
+    let pageIndex = 0;
 
-    // Single page: just print the modal as-is
+    for (let i = 0; i < allRows.length; i++) {
+      const rh = rowHeights[i];
+      const isLastRow = (i === allRows.length - 1);
+
+      // Maximum available height on current page for table rows
+      const maxSpace = (pageIndex === 0)
+        ? (USABLE_H_PX - headerH - addressH - theadH)
+        : (USABLE_H_PX - miniHeaderH - theadH - bfTrH);
+
+      if (!isLastRow) {
+        // Intermediate row: page must also accommodate cTrH if this row is added
+        if (curPageRows.length > 0 && (curH + rh + cTrH > maxSpace)) {
+          pages.push(curPageRows);
+          curPageRows = [i];
+          curH = rh;
+          pageIndex++;
+        } else {
+          curPageRows.push(i);
+          curH += rh;
+        }
+      } else {
+        // Last row: must fit row i AND the summary block on current page
+        if (curPageRows.length > 0 && (curH + rh + summaryH > maxSpace)) {
+          pages.push(curPageRows);
+          curPageRows = [i];
+          curH = rh;
+          pageIndex++;
+        } else {
+          curPageRows.push(i);
+          curH += rh;
+        }
+      }
+    }
+
+    if (curPageRows.length > 0) {
+      pages.push(curPageRows);
+    }
+
+    // If single page, print directly
     if (pages.length <= 1) { window.print(); return; }
 
     const totalPages = pages.length;
