@@ -1893,62 +1893,89 @@ document.addEventListener("DOMContentLoaded", () => {
   btnTriggerPrint.addEventListener("click", buildPaginatedPrint);
 
   function buildPaginatedPrint() {
-    // 1. Collect rendered rows from the existing populated template
-    const srcTable = document.querySelector("#print-area table");
-    const srcThead = srcTable ? srcTable.querySelector("thead") : null;
-    const srcTbody = srcTable ? srcTable.querySelector("tbody") : null;
+    const printArea = document.getElementById("print-area");
+    const srcTable  = printArea ? printArea.querySelector("table") : null;
+    const srcThead  = srcTable  ? srcTable.querySelector("thead")  : null;
+    const srcTbody  = srcTable  ? srcTable.querySelector("tbody")  : null;
     if (!srcTable || !srcTbody) { window.print(); return; }
 
-    const allRows = Array.from(srcTbody.querySelectorAll("tr"));
-
-    // 2. A4 usable height in pixels (screen resolution 96dpi)
-    //    A4=297mm, 15mm top+bottom margins => usable ~267mm => ~1009px
-    const MM_PX = 96 / 25.4;
-    // Print engines render at ~85% of screen pixel measurements.
-    // We measure rows in screen px, so apply a 0.83 factor to convert
-    // the A4 usable height into a safe screen-px equivalent budget.
-    // A4=297mm, 15mm margins => 267mm usable. At 96dpi = 1009px.
-    // 1009 * 0.83 ≈ 837px — this is the actual usable budget per page.
-    const PRINT_SCALE = 0.75; // conservative: screen px → print px conversion factor
-    const USABLE_PX   = Math.round(267 * MM_PX * PRINT_SCALE); // ~755px usable per page
-
-    // 3. Measure heights of fixed chrome from the live DOM
-    const printArea    = document.getElementById("print-area");
+    const allRows      = Array.from(srcTbody.querySelectorAll("tr"));
     const allPrintDivs = printArea ? Array.from(printArea.querySelectorAll(":scope > div")) : [];
-    const headerBlock  = allPrintDivs[0] || null;   // invoice header (biz name / TAX INVOICE)
-    const addressBlock = allPrintDivs[1] || null;   // billing address box
-    // summary div = the div after the table (3rd child, index 2 in allPrintDivs)
+    const headerBlock  = allPrintDivs[0] || null;
+    const addressBlock = allPrintDivs[1] || null;
     const summaryBlock = allPrintDivs[2] || null;
-    // signature block = last div
     const sigBlock     = allPrintDivs[allPrintDivs.length - 1] || null;
-    const theadRow     = srcThead ? srcThead.querySelector("tr") : null;
     const hsnLabel     = printArea ? printArea.querySelector("h4") : null;
     const hsnTable     = hsnLabel ? hsnLabel.nextElementSibling : null;
 
-    const headerH  = (headerBlock  ? headerBlock.offsetHeight  : 120) + 24;
-    const addressH = (addressBlock ? addressBlock.offsetHeight : 80)  + 24;
-    const theadH   = theadRow ? theadRow.offsetHeight : 36;
-    const BANNER_H = 32;
-    const summaryH = (summaryBlock ? summaryBlock.offsetHeight : 160)
-                   + (hsnLabel     ? hsnLabel.offsetHeight     : 20)
-                   + (hsnTable     ? hsnTable.offsetHeight     : 60)
-                   + (sigBlock     ? sigBlock.offsetHeight     : 80)
-                   + 60;
+    // ── Measure everything at EXACT print content width using a sandbox ────────
+    // A4 = 210mm, 15mm margins each side → content width = 180mm
+    // At 96 CSS-px/inch: 267mm (usable height) = ~1009px
+    const MM_TO_PX     = 96 / 25.4;
+    const USABLE_H_PX  = Math.round(267 * MM_TO_PX); // 1009px
 
-    const MINI_H  = 48;
-    const budget1 = USABLE_PX - headerH - addressH - theadH - BANNER_H;
-    const budgetN = USABLE_PX - MINI_H - theadH - BANNER_H;
+    const sandbox = document.createElement("div");
+    sandbox.style.cssText = [
+      "position:absolute", "left:-99999px", "top:0",
+      "width:calc(210mm - 30mm)",   // 180mm = exact print content width
+      "visibility:hidden", "overflow:visible",
+      "font-family:'DM Sans',sans-serif", "font-size:11px"
+    ].join(";");
+    document.body.appendChild(sandbox);
 
-    // 4. Measure each row height from live DOM
-    const rowH = allRows.map(tr => Math.max(tr.offsetHeight, 28));
+    // Measure fixed chrome blocks at print width
+    function measureBlock(el) {
+      if (!el) return 0;
+      const c = el.cloneNode(true);
+      sandbox.appendChild(c);
+      const h = c.offsetHeight;
+      c.remove();
+      return h;
+    }
 
-    // 5. Bin-pack rows into A4-sized page buckets
+    const headerH  = measureBlock(headerBlock)  + 24; // +24 for margin below
+    const addressH = measureBlock(addressBlock) + 24;
+    const BANNER_H = 32; // "Continued on page X" row
+    const MINI_H   = 48; // continuation mini-header
+
+    // Measure all summary sections together
+    const summaryH = measureBlock(summaryBlock)
+                   + measureBlock(hsnLabel)
+                   + measureBlock(hsnTable)
+                   + measureBlock(sigBlock)
+                   + 60; // extra breathing room
+
+    // Measure each row at print width using a real table context
+    const measTable = document.createElement("table");
+    measTable.style.cssText = "width:100%;border-collapse:collapse;font-size:11px;";
+    if (srcThead) measTable.appendChild(srcThead.cloneNode(true));
+    const measTbody = document.createElement("tbody");
+    measTable.appendChild(measTbody);
+    sandbox.appendChild(measTable);
+
+    const theadH = (measTable.querySelector("thead") || {}).offsetHeight || 36;
+
+    const rowHeights = allRows.map(tr => {
+      const clone = tr.cloneNode(true);
+      measTbody.appendChild(clone);
+      const h = Math.max(clone.offsetHeight, 28);
+      clone.remove();
+      return h;
+    });
+
+    sandbox.remove(); // clean up measurement sandbox
+
+    // ── Bin-pack rows into A4 pages ───────────────────────────────────────────
+    const budget1 = USABLE_H_PX - headerH - addressH - theadH - BANNER_H;
+    const budgetN = USABLE_H_PX - MINI_H  - theadH   - BANNER_H;
+
     const pages = [];
     let cur = [], curH = 0, firstPage = true;
     for (let i = 0; i < allRows.length; i++) {
-      const rh     = rowH[i];
+      const rh     = rowHeights[i];
       const isLast = (i === allRows.length - 1);
       const budget = firstPage ? budget1 : budgetN;
+      // On the last row, also reserve space for the summary block
       const needed = rh + (isLast ? summaryH : 0);
       if (cur.length > 0 && curH + needed > budget) {
         pages.push(cur); cur = []; curH = 0; firstPage = false;
@@ -1957,40 +1984,41 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (cur.length > 0) pages.push(cur);
 
-    // 6. Single page: print original as-is
+    // Single page: just print the modal as-is
     if (pages.length <= 1) { window.print(); return; }
 
     const totalPages = pages.length;
 
-    // 7. Clone reusable elements
-    const theadClone   = srcThead?.cloneNode(true);
-    const summaryClone = summaryBlock?.cloneNode(true);
-    const hsnLblClone  = hsnLabel?.cloneNode(true);
-    const hsnTblClone  = hsnTable?.cloneNode(true);
-    const sigClone     = sigBlock?.cloneNode(true);
-    const invNumber    = document.getElementById("print-inv-number")?.textContent || "";
-    const bizName      = document.getElementById("print-biz-name")?.textContent   || "";
+    // ── Clone reusable elements ───────────────────────────────────────────────
+    const theadClone   = srcThead ? srcThead.cloneNode(true) : null;
+    const summaryClone = summaryBlock ? summaryBlock.cloneNode(true) : null;
+    const hsnLblClone  = hsnLabel    ? hsnLabel.cloneNode(true)    : null;
+    const hsnTblClone  = hsnTable    ? hsnTable.cloneNode(true)    : null;
+    const sigClone     = sigBlock    ? sigBlock.cloneNode(true)    : null;
+    const invNumber    = (document.getElementById("print-inv-number") || {}).textContent || "";
+    const bizName      = (document.getElementById("print-biz-name")   || {}).textContent || "";
 
-    // 8. Build hidden paginated print container
+    // ── Build paginated print container ───────────────────────────────────────
     const container = document.createElement("div");
     container.id = "paginated-print-root";
 
     pages.forEach((rowIdxList, pi) => {
-      const isLastPg = pi === totalPages - 1;
+      const isLastPg = (pi === totalPages - 1);
       const pageNum  = pi + 1;
 
       const pg = document.createElement("div");
       pg.className = "inv-print-page";
       if (!isLastPg) { pg.style.pageBreakAfter = "always"; pg.style.breakAfter = "page"; }
 
-      // Header block
+      // Header
       if (pi === 0) {
         if (headerBlock)  pg.appendChild(headerBlock.cloneNode(true));
         if (addressBlock) pg.appendChild(addressBlock.cloneNode(true));
       } else {
         const mh = document.createElement("div");
         mh.className = "inv-continuation-header";
-        mh.innerHTML = "<span><b>" + bizName + "</b> — Invoice " + invNumber + " (Continued)</span><span>Page " + pageNum + " of " + totalPages + "</span>";
+        mh.innerHTML = "<span><b>" + bizName + "</b> \u2014 Invoice " + invNumber + " (Continued)</span>"
+                     + "<span>Page " + pageNum + " of " + totalPages + "</span>";
         pg.appendChild(mh);
       }
 
@@ -2004,7 +2032,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const bfTr = document.createElement("tr");
         bfTr.className = "inv-row-bf";
         const bfTd = document.createElement("td"); bfTd.colSpan = 20;
-        bfTd.textContent = "← Carried forward from page " + (pageNum - 1);
+        bfTd.textContent = "\u2190 Carried forward from page " + (pageNum - 1);
         bfTr.appendChild(bfTd); tb.appendChild(bfTr);
       }
 
@@ -2014,12 +2042,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const cTr = document.createElement("tr");
         cTr.className = "inv-row-continues";
         const cTd = document.createElement("td"); cTd.colSpan = 20;
-        cTd.textContent = "Continued on page " + (pageNum + 1) + " of " + totalPages + " →";
+        cTd.textContent = "Continued on page " + (pageNum + 1) + " of " + totalPages + " \u2192";
         cTr.appendChild(cTd); tb.appendChild(cTr);
       }
 
-      tbl.appendChild(tb); pg.appendChild(tbl);
+      tbl.appendChild(tb);
+      pg.appendChild(tbl);
 
+      // Summary block on last page only
       if (isLastPg) {
         if (summaryClone) pg.appendChild(summaryClone.cloneNode(true));
         if (hsnLblClone)  pg.appendChild(hsnLblClone.cloneNode(true));
@@ -2030,13 +2060,12 @@ document.addEventListener("DOMContentLoaded", () => {
       container.appendChild(pg);
     });
 
-    // 9. Inject, print, and clean up
+    // ── Inject, print, remove ─────────────────────────────────────────────────
     document.body.appendChild(container);
     const cleanup = () => { container.remove(); window.removeEventListener("afterprint", cleanup); };
     window.addEventListener("afterprint", cleanup);
     window.print();
   }
-
   btnClosePrint.addEventListener("click", () => {
     closeModal("invoice-print-modal");
   });
