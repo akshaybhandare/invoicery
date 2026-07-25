@@ -828,6 +828,7 @@ h1, h2, h3, h4, h5, h6,
   .inv-print-page {
     display: block !important;
     width: 100%;
+    box-sizing: border-box;
     font-family: 'DM Sans', sans-serif;
     font-size: 11px;
     color: #000000;
@@ -840,17 +841,20 @@ h1, h2, h3, h4, h5, h6,
     break-inside: avoid !important;
   }
 
-  /* Full black grid for the items table */
-  .inv-print-table,
+  /* Full black grid for the items table — constrained to page width */
+  .inv-print-table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    margin-top: 12px;
+    box-sizing: border-box;
+  }
   .inv-print-table th,
   .inv-print-table td {
     border: 1px solid #000 !important;
-    border-collapse: collapse !important;
-  }
-  .inv-print-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 12px;
+    overflow: hidden;
+    word-break: break-word;
   }
 
   /* Continuation mini-header */
@@ -875,11 +879,21 @@ h1, h2, h3, h4, h5, h6,
     border: 1px solid #ccc !important;
   }
 
-  /* Summary block must not split */
+  /* Summary block must not split — strip screen-mode card styling */
   .invoice-summary-block {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    margin-top: 20px;
+    margin-top: 20px !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  /* Strip card chrome from any nested totals pane */
+  .inv-print-page .totals-pane {
+    background: transparent !important;
+    border-radius: 0 !important;
+    border: none !important;
+    padding: 0 !important;
   }
 
   /* When single-page fallback (paginated-print-root absent): original modal prints */

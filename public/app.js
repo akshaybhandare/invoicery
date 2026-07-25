@@ -1913,13 +1913,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const USABLE_PX   = Math.round(267 * MM_PX * PRINT_SCALE); // ~755px usable per page
 
     // 3. Measure heights of fixed chrome from the live DOM
-    const headerBlock  = document.querySelector("#print-area > div:first-child");
-    const addressBlock = document.querySelector("#print-area > div:nth-child(2)");
+    const printArea    = document.getElementById("print-area");
+    const allPrintDivs = printArea ? Array.from(printArea.querySelectorAll(":scope > div")) : [];
+    const headerBlock  = allPrintDivs[0] || null;   // invoice header (biz name / TAX INVOICE)
+    const addressBlock = allPrintDivs[1] || null;   // billing address box
+    // summary div = the div after the table (3rd child, index 2 in allPrintDivs)
+    const summaryBlock = allPrintDivs[2] || null;
+    // signature block = last div
+    const sigBlock     = allPrintDivs[allPrintDivs.length - 1] || null;
     const theadRow     = srcThead ? srcThead.querySelector("tr") : null;
-    const summaryBlock = document.querySelector(".invoice-summary-block");
-    const hsnLabel     = document.querySelector("#print-area h4");
+    const hsnLabel     = printArea ? printArea.querySelector("h4") : null;
     const hsnTable     = hsnLabel ? hsnLabel.nextElementSibling : null;
-    const sigBlock     = document.querySelector("#print-area > div:last-child");
 
     const headerH  = (headerBlock  ? headerBlock.offsetHeight  : 120) + 24;
     const addressH = (addressBlock ? addressBlock.offsetHeight : 80)  + 24;
