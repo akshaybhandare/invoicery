@@ -808,99 +808,127 @@ h1, h2, h3, h4, h5, h6,
 /* ==========================================================================
    5. Media Print Layout (A4 Tax Invoice Sheet Formatting)
    ========================================================================== */
+/* ==========================================================================
+   Screen styles for the new invoice print modal shell
+   ========================================================================== */
+.invoice-print-modal-inner {
+  background: #ffffff;
+  max-width: 940px;
+  width: 96%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 0;
+  border-radius: 0;
+  color: #000000;
+  font-family: 'DM Sans', sans-serif;
+  position: relative;
+}
+
+.print-actions-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1.5px dotted #000000;
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+#print-area {
+  padding: 0;
+}
+
+/* Each JS-generated page gets comfortable reading padding on screen */
+.print-page {
+  padding: 40px 48px;
+  border-bottom: 2px dashed #cccccc;
+}
+.print-page:last-child {
+  border-bottom: none;
+}
+
+/* ==========================================================================
+   Print media — JS-driven page-break pagination
+   ========================================================================== */
 @media print {
   @page {
     size: A4;
-    margin: 0; /* Bypasses browser print defaults, margin controlled by modal padding */
+    margin: 0;
   }
 
+  /* Collapse all screen chrome */
   html, body {
     height: auto !important;
     overflow: visible !important;
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    display: block !important;
+    background: #fff !important;
   }
-  
-  /* Hide all non-printable wrappers completely to collapse layout and prevent blank first pages */
+
   .nav-wrapper,
   main,
   .caldera-footer,
   .modal-overlay:not(#invoice-print-modal) {
     display: none !important;
   }
-  
-  body * {
-    visibility: hidden;
-  }
-  
-  #invoice-print-modal, 
+
+  body * { visibility: hidden; }
+
+  #invoice-print-modal,
   #invoice-print-modal * {
     visibility: visible;
   }
-  
+
+  /* Flatten the modal — no scrolling chrome */
   #invoice-print-modal {
     position: relative !important;
-    left: 0 !important;
-    top: 0 !important;
+    display: block !important;
     width: 100% !important;
     height: auto !important;
-    background-color: #ffffff !important;
+    overflow: visible !important;
+    background: #fff !important;
     box-shadow: none !important;
     padding: 0 !important;
     margin: 0 !important;
-    z-index: auto !important;
-    display: block !important;
-    overflow: visible !important;
     backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
   }
-  
+
+  .invoice-print-modal-inner {
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Hide toolbar buttons */
   .print-actions-toolbar {
     display: none !important;
   }
-  
-  .modal-card {
-    border: none !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 20mm !important; /* Clean, official A4 layout margins */
-    margin: 0 !important;
-    background-color: #ffffff !important;
-    box-shadow: none !important;
-    max-height: none !important;
-    overflow: visible !important;
-    overflow-y: visible !important;
+
+  /* Each .print-page IS one physical page */
+  .print-page {
     display: block !important;
-  }
-  
-  /* Repeat headers and prevent table rows from splitting across pages */
-  table {
-    page-break-inside: auto;
     width: 100% !important;
-    border-collapse: collapse !important;
-    margin-top: 16px !important;
+    padding: 18mm 20mm !important;
+    border-bottom: none !important;
+    box-sizing: border-box !important;
+    /* page-break is set inline by JS per-page */
   }
+
+  /* Never allow a table row to straddle a page break */
   tr {
     page-break-inside: avoid !important;
-    page-break-after: auto;
+    break-inside: avoid !important;
   }
-  thead {
-    display: table-header-group !important;
-  }
-  tfoot {
-    display: table-footer-group !important;
-  }
-  th, td {
-    page-break-inside: avoid !important;
-  }
-  
-  /* Force explicit grid borders in print mode for an official tax invoice format */
+
+  /* Clean black gridlines */
   table, th, td {
     border: 1px solid #000000 !important;
+    border-collapse: collapse !important;
   }
-  
-  /* Ensure the summary block doesn't split across pages */
+
+  /* Summary block should never be orphaned */
   .invoice-summary-block {
     page-break-inside: avoid !important;
     break-inside: avoid !important;

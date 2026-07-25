@@ -1412,482 +1412,344 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // --- 8. Print Layout Preview Management (A4 formatting & GSTR matching) ---
+  // --- 8. Print Layout Preview Management — JS-driven pagination engine ---
   async function openPrintInvoice(id) {
     try {
       const response = await fetch(`/api/invoices/detail?id=${id}`);
       if (!response.ok) throw new Error("Failed to fetch invoice details");
       const { invoice, items } = await response.json();
 
-      // Populate business company details from cached settings
-      document.getElementById("print-biz-name").textContent = cachedSettings.business_name || "MY BUSINESS";
-      
-      const addressParts = [];
-      if (cachedSettings.business_address) addressParts.push(cachedSettings.business_address);
-      if (cachedSettings.business_city) addressParts.push(cachedSettings.business_city);
-      document.getElementById("print-biz-address").textContent = addressParts.join(", ") || "Karnataka, India";
-      
-      document.getElementById("print-biz-gstin").textContent = cachedSettings.business_gstin || "NOT CONFIGURED";
-      document.getElementById("print-biz-sign-label").textContent = `For ${cachedSettings.business_name || "MY BUSINESS"}`;
-      
-      const printLogo = document.getElementById("print-biz-logo");
-      if (printLogo) {
-        if (cachedSettings.business_logo_path) {
-          printLogo.src = cachedSettings.business_logo_path;
-          printLogo.style.display = "block";
-        } else {
-          printLogo.src = "";
-          printLogo.style.display = "none";
-        }
-      }
-
-      const stateLabel = document.getElementById("print-biz-state-label");
-      if (stateLabel) {
-        const stateName = cachedSettings.business_state || "Karnataka";
-        const stateCode = cachedSettings.business_state_code || "29";
-        stateLabel.textContent = `State: ${stateName} (${stateCode})`;
-      }
-
-      // Populate customer billing details
-      document.getElementById("print-cust-name").textContent = invoice.customer_name || "—";
-      document.getElementById("print-cust-address").textContent = invoice.customer_billing_address || "No Address Provided";
-      document.getElementById("print-cust-phone").textContent = `Phone: ${invoice.customer_phone || "—"}`;
-      
-      const gstinContainer = document.getElementById("print-cust-gstin-container");
-      if (invoice.customer_gstin && invoice.customer_gstin.trim() !== "" && invoice.customer_gstin !== "—") {
-        gstinContainer.style.display = "block";
-        document.getElementById("print-cust-gstin").textContent = invoice.customer_gstin;
-      } else {
-        gstinContainer.style.display = "none";
-      }
-
-      // Populate invoice summary metadata
-      document.getElementById("print-inv-number").textContent = invoice.id;
-      document.getElementById("print-inv-date").textContent = invoice.invoice_date;
-      document.getElementById("print-inv-pos").textContent = `${invoice.place_of_supply} (${invoice.state_code})`;
-      document.getElementById("print-notes").textContent = invoice.notes || "—";
-
-      // Toggle printed table header columns based on supply type
       const isLocal = (invoice.state_code === "29");
-      const cgstCols = document.querySelectorAll(".print-col-cgst");
-      const sgstCols = document.querySelectorAll(".print-col-sgst");
-      const igstCols = document.querySelectorAll(".print-col-igst");
+      const bizName = cachedSettings.business_name || "MY BUSINESS";
+      const bizAddress = [cachedSettings.business_address, cachedSettings.business_city].filter(Boolean).join(", ") || "Karnataka, India";
+      const bizGstin = cachedSettings.business_gstin || "NOT CONFIGURED";
+      const bizState = `${cachedSettings.business_state || "Karnataka"} (${cachedSettings.business_state_code || "29"})`;
+      const bizLogo = cachedSettings.business_logo_path || "";
 
-      if (isLocal) {
-        cgstCols.forEach(el => el.style.display = "");
-        sgstCols.forEach(el => el.style.display = "");
-        igstCols.forEach(el => el.style.display = "none");
-      } else {
-        cgstCols.forEach(el => el.style.display = "none");
-        sgstCols.forEach(el => el.style.display = "none");
-        igstCols.forEach(el => el.style.display = "");
+      // Column count: 14 for intrastate, 12 for interstate (CGST+SGST hidden / IGST shown)
+      const COLSPAN = 14;
+
+      // Page capacity thresholds
+      const PAGE_1_MAX = 10; // Page 1 has header+address so fewer rows fit
+      const PAGE_N_MAX = 18; // Subsequent pages fit more rows
+
+      // ── Helper: build a canonical table header row ──────────────────────────
+      function buildTableHead() {
+        return `<thead>
+          <tr style="background-color:#f2f2f2;">
+            <th style="padding:7px 6px;border:1px solid #000;width:4%;text-align:center;">#</th>
+            <th style="padding:7px 6px;border:1px solid #000;width:22%;">PRODUCT DESCRIPTION</th>
+            <th style="padding:7px 6px;border:1px solid #000;width:8%;text-align:center;">HSN/SAC</th>
+            <th style="padding:7px 6px;border:1px solid #000;width:5%;text-align:center;">QTY</th>
+            <th style="padding:7px 6px;border:1px solid #000;width:5%;text-align:center;">UNIT</th>
+            <th style="padding:7px 6px;border:1px solid #000;width:9%;text-align:right;">RATE (₹)</th>
+            <th style="padding:7px 6px;border:1px solid #000;width:10%;text-align:right;">TAXABLE (₹)</th>
+            ${isLocal ? `
+            <th style="padding:7px 6px;border:1px solid #000;width:5%;text-align:center;">CGST%</th>
+            <th style="padding:7px 6px;border:1px solid #000;width:8%;text-align:right;">CGST (₹)</th>
+            <th style="padding:7px 6px;border:1px solid #000;width:5%;text-align:center;">SGST%</th>
+            <th style="padding:7px 6px;border:1px solid #000;width:8%;text-align:right;">SGST (₹)</th>
+            ` : `
+            <th style="padding:7px 6px;border:1px solid #000;width:5%;text-align:center;">IGST%</th>
+            <th style="padding:7px 6px;border:1px solid #000;width:8%;text-align:right;">IGST (₹)</th>
+            <th style="padding:7px 6px;border:1px solid #000;width:5%;text-align:center;display:none;"></th>
+            <th style="padding:7px 6px;border:1px solid #000;width:8%;text-align:right;display:none;"></th>
+            `}
+            <th style="padding:7px 6px;border:1px solid #000;width:11%;text-align:right;">TOTAL (₹)</th>
+          </tr>
+        </thead>`;
       }
 
-      // Populate items table rows
-      const tbody = document.getElementById("print-items-list");
-      tbody.innerHTML = "";
-      items.forEach((item, index) => {
-        const tr = document.createElement("tr");
-        
-        const tdIdx = document.createElement("td");
-        tdIdx.textContent = index + 1;
-        tdIdx.style.textAlign = "center";
-        tdIdx.style.padding = "8px";
-        tdIdx.style.borderRight = "1px solid #000000";
-        tdIdx.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdIdx);
-
-        const tdDesc = document.createElement("td");
-        tdDesc.textContent = item.product_name;
-        tdDesc.style.padding = "8px";
-        tdDesc.style.borderRight = "1px solid #000000";
-        tdDesc.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdDesc);
-
-        const tdHsn = document.createElement("td");
-        tdHsn.textContent = item.hsn_sac_code || "—";
-        tdHsn.style.textAlign = "center";
-        tdHsn.style.padding = "8px";
-        tdHsn.style.borderRight = "1px solid #000000";
-        tdHsn.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdHsn);
-
-        const tdQty = document.createElement("td");
-        tdQty.textContent = item.quantity;
-        tdQty.style.textAlign = "center";
-        tdQty.style.padding = "8px";
-        tdQty.style.borderRight = "1px solid #000000";
-        tdQty.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdQty);
-
-        const tdUnit = document.createElement("td");
-        tdUnit.textContent = item.unit;
-        tdUnit.style.textAlign = "center";
-        tdUnit.style.padding = "8px";
-        tdUnit.style.borderRight = "1px solid #000000";
-        tdUnit.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdUnit);
-
-        const tdPrice = document.createElement("td");
-        tdPrice.textContent = parseFloat(item.unit_price).toFixed(2);
-        tdPrice.style.textAlign = "right";
-        tdPrice.style.padding = "8px";
-        tdPrice.style.borderRight = "1px solid #000000";
-        tdPrice.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdPrice);
-
-        const tdAmt = document.createElement("td");
-        tdAmt.textContent = parseFloat(item.taxable_value).toFixed(2);
-        tdAmt.style.textAlign = "right";
-        tdAmt.style.padding = "8px";
-        tdAmt.style.borderRight = "1px solid #000000";
-        tdAmt.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdAmt);
-
-        // CGST Rate & Amount
-        const tdCr = document.createElement("td");
-        tdCr.className = "print-col-cgst";
-        tdCr.textContent = isLocal ? `${(item.gst_rate / 2)}%` : "0%";
-        tdCr.style.textAlign = "center";
-        tdCr.style.padding = "8px";
-        tdCr.style.borderRight = "1px solid #000000";
-        tdCr.style.borderBottom = "1px solid #000000";
-        if (!isLocal) tdCr.style.display = "none";
-        tr.appendChild(tdCr);
-
-        const tdCa = document.createElement("td");
-        tdCa.className = "print-col-cgst";
-        tdCa.textContent = parseFloat(item.cgst_amount).toFixed(2);
-        tdCa.style.textAlign = "right";
-        tdCa.style.padding = "8px";
-        tdCa.style.borderRight = "1px solid #000000";
-        tdCa.style.borderBottom = "1px solid #000000";
-        if (!isLocal) tdCa.style.display = "none";
-        tr.appendChild(tdCa);
-
-        // SGST Rate & Amount
-        const tdSr = document.createElement("td");
-        tdSr.className = "print-col-sgst";
-        tdSr.textContent = isLocal ? `${(item.gst_rate / 2)}%` : "0%";
-        tdSr.style.textAlign = "center";
-        tdSr.style.padding = "8px";
-        tdSr.style.borderRight = "1px solid #000000";
-        tdSr.style.borderBottom = "1px solid #000000";
-        if (!isLocal) tdSr.style.display = "none";
-        tr.appendChild(tdSr);
-
-        const tdSa = document.createElement("td");
-        tdSa.className = "print-col-sgst";
-        tdSa.textContent = parseFloat(item.sgst_amount).toFixed(2);
-        tdSa.style.textAlign = "right";
-        tdSa.style.padding = "8px";
-        tdSa.style.borderRight = "1px solid #000000";
-        tdSa.style.borderBottom = "1px solid #000000";
-        if (!isLocal) tdSa.style.display = "none";
-        tr.appendChild(tdSa);
-
-        // IGST Rate & Amount
-        const tdIr = document.createElement("td");
-        tdIr.className = "print-col-igst";
-        tdIr.textContent = !isLocal ? `${item.gst_rate}%` : "0%";
-        tdIr.style.textAlign = "center";
-        tdIr.style.padding = "8px";
-        tdIr.style.borderRight = "1px solid #000000";
-        tdIr.style.borderBottom = "1px solid #000000";
-        if (isLocal) tdIr.style.display = "none";
-        tr.appendChild(tdIr);
-
-        const tdIa = document.createElement("td");
-        tdIa.className = "print-col-igst";
-        tdIa.textContent = parseFloat(item.igst_amount).toFixed(2);
-        tdIa.style.textAlign = "right";
-        tdIa.style.padding = "8px";
-        tdIa.style.borderRight = "1px solid #000000";
-        tdIa.style.borderBottom = "1px solid #000000";
-        if (isLocal) tdIa.style.display = "none";
-        tr.appendChild(tdIa);
-
-        // Total Amount
-        const tdTot = document.createElement("td");
-        tdTot.textContent = parseFloat(item.total_amount).toFixed(2);
-        tdTot.style.textAlign = "right";
-        tdTot.style.padding = "8px";
-        tdTot.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdTot);
-
-        tbody.appendChild(tr);
-      });
-
-      // Append a bolded summary row at the bottom of the items table
-      const trSum = document.createElement("tr");
-      trSum.style.fontWeight = "bold";
-      trSum.style.backgroundColor = "#f9f9f9";
-
-      // 1. Index
-      const tdIdxSum = document.createElement("td");
-      tdIdxSum.textContent = "";
-      tdIdxSum.style.padding = "8px";
-      tdIdxSum.style.borderRight = "1px solid #000000";
-      tdIdxSum.style.borderBottom = "1px solid #000000";
-      trSum.appendChild(tdIdxSum);
-
-      // 2. Description
-      const tdDescSum = document.createElement("td");
-      tdDescSum.textContent = "TOTAL";
-      tdDescSum.style.padding = "8px";
-      tdDescSum.style.borderRight = "1px solid #000000";
-      tdDescSum.style.borderBottom = "1px solid #000000";
-      trSum.appendChild(tdDescSum);
-
-      // 3. HSN
-      const tdHsnSum = document.createElement("td");
-      tdHsnSum.textContent = "";
-      tdHsnSum.style.padding = "8px";
-      tdHsnSum.style.borderRight = "1px solid #000000";
-      tdHsnSum.style.borderBottom = "1px solid #000000";
-      trSum.appendChild(tdHsnSum);
-
-      // 4. Qty Sum
-      const tdQtySum = document.createElement("td");
-      tdQtySum.textContent = items.reduce((sum, item) => sum + item.quantity, 0);
-      tdQtySum.style.textAlign = "center";
-      tdQtySum.style.padding = "8px";
-      tdQtySum.style.borderRight = "1px solid #000000";
-      tdQtySum.style.borderBottom = "1px solid #000000";
-      trSum.appendChild(tdQtySum);
-
-      // 5. Unit
-      const tdUnitSum = document.createElement("td");
-      tdUnitSum.textContent = "";
-      tdUnitSum.style.padding = "8px";
-      tdUnitSum.style.borderRight = "1px solid #000000";
-      tdUnitSum.style.borderBottom = "1px solid #000000";
-      trSum.appendChild(tdUnitSum);
-
-      // 6. Rate
-      const tdRateSum = document.createElement("td");
-      tdRateSum.textContent = "";
-      tdRateSum.style.padding = "8px";
-      tdRateSum.style.borderRight = "1px solid #000000";
-      tdRateSum.style.borderBottom = "1px solid #000000";
-      trSum.appendChild(tdRateSum);
-
-      // 7. Taxable Value Sum
-      const tdAmtSum = document.createElement("td");
-      tdAmtSum.textContent = parseFloat(invoice.taxable_value).toFixed(2);
-      tdAmtSum.style.textAlign = "right";
-      tdAmtSum.style.padding = "8px";
-      tdAmtSum.style.borderRight = "1px solid #000000";
-      tdAmtSum.style.borderBottom = "1px solid #000000";
-      trSum.appendChild(tdAmtSum);
-
-      // 8. CGST Rate
-      const tdCrSum = document.createElement("td");
-      tdCrSum.className = "print-col-cgst";
-      tdCrSum.textContent = "";
-      tdCrSum.style.padding = "8px";
-      tdCrSum.style.borderRight = "1px solid #000000";
-      tdCrSum.style.borderBottom = "1px solid #000000";
-      if (!isLocal) tdCrSum.style.display = "none";
-      trSum.appendChild(tdCrSum);
-
-      // 9. CGST Amount Sum
-      const tdCaSum = document.createElement("td");
-      tdCaSum.className = "print-col-cgst";
-      tdCaSum.textContent = parseFloat(invoice.cgst_amount).toFixed(2);
-      tdCaSum.style.textAlign = "right";
-      tdCaSum.style.padding = "8px";
-      tdCaSum.style.borderRight = "1px solid #000000";
-      tdCaSum.style.borderBottom = "1px solid #000000";
-      if (!isLocal) tdCaSum.style.display = "none";
-      trSum.appendChild(tdCaSum);
-
-      // 10. SGST Rate
-      const tdSrSum = document.createElement("td");
-      tdSrSum.className = "print-col-sgst";
-      tdSrSum.textContent = "";
-      tdSrSum.style.padding = "8px";
-      tdSrSum.style.borderRight = "1px solid #000000";
-      tdSrSum.style.borderBottom = "1px solid #000000";
-      if (!isLocal) tdSrSum.style.display = "none";
-      trSum.appendChild(tdSrSum);
-
-      // 11. SGST Amount Sum
-      const tdSaSum = document.createElement("td");
-      tdSaSum.className = "print-col-sgst";
-      tdSaSum.textContent = parseFloat(invoice.sgst_amount).toFixed(2);
-      tdSaSum.style.textAlign = "right";
-      tdSaSum.style.padding = "8px";
-      tdSaSum.style.borderRight = "1px solid #000000";
-      tdSaSum.style.borderBottom = "1px solid #000000";
-      if (!isLocal) tdSaSum.style.display = "none";
-      trSum.appendChild(tdSaSum);
-
-      // 12. IGST Rate
-      const tdIrSum = document.createElement("td");
-      tdIrSum.className = "print-col-igst";
-      tdIrSum.textContent = "";
-      tdIrSum.style.padding = "8px";
-      tdIrSum.style.borderRight = "1px solid #000000";
-      tdIrSum.style.borderBottom = "1px solid #000000";
-      if (isLocal) tdIrSum.style.display = "none";
-      trSum.appendChild(tdIrSum);
-
-      // 13. IGST Amount Sum
-      const tdIaSum = document.createElement("td");
-      tdIaSum.className = "print-col-igst";
-      tdIaSum.textContent = parseFloat(invoice.igst_amount).toFixed(2);
-      tdIaSum.style.textAlign = "right";
-      tdIaSum.style.padding = "8px";
-      tdIaSum.style.borderRight = "1px solid #000000";
-      tdIaSum.style.borderBottom = "1px solid #000000";
-      if (isLocal) tdIaSum.style.display = "none";
-      trSum.appendChild(tdIaSum);
-
-      // 14. Total Amount Sum
-      const tdTotSum = document.createElement("td");
-      tdTotSum.textContent = parseFloat(invoice.grand_total - invoice.round_off).toFixed(2);
-      tdTotSum.style.textAlign = "right";
-      tdTotSum.style.padding = "8px";
-      tdTotSum.style.borderBottom = "1px solid #000000";
-      trSum.appendChild(tdTotSum);
-
-      tbody.appendChild(trSum);
-
-      // Populate summary totals
-      document.getElementById("print-summary-taxable").textContent = `₹${parseFloat(invoice.taxable_value).toFixed(2)}`;
-      document.getElementById("print-summary-cgst").textContent = `₹${parseFloat(invoice.cgst_amount).toFixed(2)}`;
-      document.getElementById("print-summary-sgst").textContent = `₹${parseFloat(invoice.sgst_amount).toFixed(2)}`;
-      document.getElementById("print-summary-igst").textContent = `₹${parseFloat(invoice.igst_amount).toFixed(2)}`;
-      document.getElementById("print-summary-round-off").textContent = `₹${parseFloat(invoice.round_off).toFixed(2)}`;
-      document.getElementById("print-summary-grand-total").textContent = `₹${parseFloat(invoice.grand_total).toFixed(2)}`;
-
-      const printPaidVal = parseFloat(invoice.paid_amount || 0);
-      const printDueVal = parseFloat(invoice.grand_total) - printPaidVal;
-      document.getElementById("print-summary-paid").textContent = `₹${printPaidVal.toFixed(2)}`;
-      document.getElementById("print-summary-due").textContent = `₹${printDueVal.toFixed(2)}`;
-
-      // Toggle display of CGST/SGST/IGST in printed invoice based on locale
-      if (isLocal) {
-        document.getElementById("print-row-cgst").style.display = "flex";
-        document.getElementById("print-row-sgst").style.display = "flex";
-        document.getElementById("print-row-igst").style.display = "none";
-      } else {
-        document.getElementById("print-row-cgst").style.display = "none";
-        document.getElementById("print-row-sgst").style.display = "none";
-        document.getElementById("print-row-igst").style.display = "flex";
+      // ── Helper: build one item <tr> ─────────────────────────────────────────
+      function buildItemRow(item, rowNum) {
+        const taxCells = isLocal ? `
+          <td style="padding:7px 6px;border:1px solid #000;text-align:center;">${(item.gst_rate/2)}%</td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:right;">${parseFloat(item.cgst_amount).toFixed(2)}</td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:center;">${(item.gst_rate/2)}%</td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:right;">${parseFloat(item.sgst_amount).toFixed(2)}</td>
+        ` : `
+          <td style="padding:7px 6px;border:1px solid #000;text-align:center;">${item.gst_rate}%</td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:right;">${parseFloat(item.igst_amount).toFixed(2)}</td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:center;display:none;"></td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:right;display:none;"></td>
+        `;
+        return `<tr>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:center;">${rowNum}</td>
+          <td style="padding:7px 6px;border:1px solid #000;">${item.product_name || "—"}</td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:center;">${item.hsn_sac_code || "—"}</td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:center;">${item.quantity}</td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:center;">${item.unit || "PCS"}</td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:right;">${parseFloat(item.unit_price).toFixed(2)}</td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:right;">${parseFloat(item.taxable_value).toFixed(2)}</td>
+          ${taxCells}
+          <td style="padding:7px 6px;border:1px solid #000;text-align:right;">${parseFloat(item.total_amount).toFixed(2)}</td>
+        </tr>`;
       }
 
-      // Generate HSN Tax Summary table rows dynamically
-      const hsnSummaryMap = {};
-      items.forEach(item => {
-        const hsn = item.hsn_sac_code || "N/A";
-        if (!hsnSummaryMap[hsn]) {
-          hsnSummaryMap[hsn] = {
-            taxableValue: 0,
-            gstRate: item.gst_rate,
-            cgst: 0,
-            sgst: 0,
-            igst: 0,
-            totalTax: 0
-          };
+      // ── Helper: subtotal "carried forward" row ──────────────────────────────
+      function buildSubtotalRow(label, totals, style = "") {
+        const tax1 = isLocal
+          ? `<td colspan="2" style="padding:7px 6px;border:1px solid #000;text-align:right;${style}">${totals.cgst.toFixed(2)}</td>
+             <td colspan="2" style="padding:7px 6px;border:1px solid #000;text-align:right;${style}">${totals.sgst.toFixed(2)}</td>`
+          : `<td colspan="2" style="padding:7px 6px;border:1px solid #000;text-align:right;${style}">${totals.igst.toFixed(2)}</td>
+             <td colspan="2" style="padding:7px 6px;border:1px solid #000;display:none;${style}"></td>`;
+        return `<tr style="${style}">
+          <td colspan="3" style="padding:7px 6px;border:1px solid #000;font-style:italic;${style}">${label}</td>
+          <td colspan="2" style="padding:7px 6px;border:1px solid #000;text-align:center;${style}">${totals.qty}</td>
+          <td style="padding:7px 6px;border:1px solid #000;${style}"></td>
+          <td style="padding:7px 6px;border:1px solid #000;text-align:right;${style}">${totals.taxable.toFixed(2)}</td>
+          ${tax1}
+          <td style="padding:7px 6px;border:1px solid #000;text-align:right;${style}">${totals.total.toFixed(2)}</td>
+        </tr>`;
+      }
+
+      // ── Helper: page header block (page 1 gets full header, rest get a mini-header) ──
+      function buildPageHeader(pageNum, totalPages) {
+        if (pageNum === 1) {
+          const logoHtml = bizLogo
+            ? `<img src="${bizLogo}" alt="Logo" style="width:60px;height:60px;object-fit:contain;border-radius:4px;border:1px solid #000;margin-right:12px;">`
+            : "";
+          return `
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:14px;margin-bottom:14px;">
+              <div style="display:flex;align-items:center;">
+                ${logoHtml}
+                <div>
+                  <h2 style="font-size:19px;font-weight:bold;text-transform:uppercase;margin:0 0 3px;">${bizName}</h2>
+                  <p style="font-size:11px;color:#333;margin:2px 0;line-height:1.4;">${bizAddress}</p>
+                  <p style="font-size:11px;font-weight:bold;margin:2px 0;">GSTIN: ${bizGstin}</p>
+                  <p style="font-size:11px;margin:2px 0;">State: ${bizState}</p>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <h1 style="font-size:28px;font-weight:bold;letter-spacing:-0.5px;margin:0;color:#000;">TAX INVOICE</h1>
+                <p style="font-size:13px;font-weight:bold;margin:10px 0 2px;">Invoice No: <strong>${invoice.id}</strong></p>
+                <p style="font-size:12px;margin:2px 0;">Date: ${invoice.invoice_date}</p>
+                <p style="font-size:12px;margin:2px 0;">Place of Supply: ${invoice.place_of_supply}</p>
+                <p style="font-size:11px;color:#555;margin:4px 0 0;">Page ${pageNum} of ${totalPages}</p>
+              </div>
+            </div>
+            <div style="border:1px solid #000;padding:12px;margin-bottom:14px;font-size:12px;">
+              <h4 style="text-transform:uppercase;font-weight:bold;border-bottom:1px solid #ddd;padding-bottom:4px;margin:0 0 6px;">Billed To</h4>
+              <p style="font-weight:bold;font-size:13px;margin:0 0 3px;">${invoice.customer_name || "—"}</p>
+              <p style="color:#333;margin:2px 0;">${invoice.customer_billing_address || ""}</p>
+              ${invoice.customer_phone ? `<p style="margin:2px 0;">Phone: ${invoice.customer_phone}</p>` : ""}
+              ${invoice.customer_gstin ? `<p style="font-weight:bold;margin:2px 0;">GSTIN: ${invoice.customer_gstin}</p>` : ""}
+            </div>`;
+        } else {
+          return `
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #000;padding-bottom:8px;margin-bottom:10px;">
+              <div>
+                <p style="font-weight:bold;font-size:13px;margin:0;">${bizName}</p>
+                <p style="font-size:11px;color:#555;margin:2px 0;">Continued — Invoice ${invoice.id}</p>
+              </div>
+              <p style="font-size:11px;color:#555;margin:0;">Page ${pageNum} of ${totalPages}</p>
+            </div>`;
         }
-        hsnSummaryMap[hsn].taxableValue += item.taxable_value;
-        hsnSummaryMap[hsn].cgst += item.cgst_amount;
-        hsnSummaryMap[hsn].sgst += item.sgst_amount;
-        hsnSummaryMap[hsn].igst += item.igst_amount;
-        hsnSummaryMap[hsn].totalTax += (item.cgst_amount + item.sgst_amount + item.igst_amount);
+      }
+
+      // ── Chunk items into pages ───────────────────────────────────────────────
+      const chunks = [];
+      let i = 0;
+      while (i < items.length) {
+        if (chunks.length === 0) {
+          chunks.push(items.slice(i, i + PAGE_1_MAX));
+          i += PAGE_1_MAX;
+        } else {
+          chunks.push(items.slice(i, i + PAGE_N_MAX));
+          i += PAGE_N_MAX;
+        }
+      }
+      // Edge case: 0 items
+      if (chunks.length === 0) chunks.push([]);
+      const totalPages = chunks.length;
+
+      // ── Build HTML for every page ────────────────────────────────────────────
+      let runningTotals = { qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, total: 0 };
+      let globalRowNum = 1;
+      let pagesHtml = "";
+
+      chunks.forEach((chunk, pageIdx) => {
+        const isLastPage = pageIdx === totalPages - 1;
+        const pageNum = pageIdx + 1;
+
+        // Accumulate this page's chunk totals
+        const pageTotals = { qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, total: 0 };
+        chunk.forEach(item => {
+          pageTotals.qty     += item.quantity;
+          pageTotals.taxable += parseFloat(item.taxable_value);
+          pageTotals.cgst    += parseFloat(item.cgst_amount);
+          pageTotals.sgst    += parseFloat(item.sgst_amount);
+          pageTotals.igst    += parseFloat(item.igst_amount);
+          pageTotals.total   += parseFloat(item.total_amount);
+        });
+
+        // Running totals before this page
+        const bfTotals = { ...runningTotals };
+
+        // Update running totals after this page
+        runningTotals.qty     += pageTotals.qty;
+        runningTotals.taxable += pageTotals.taxable;
+        runningTotals.cgst    += pageTotals.cgst;
+        runningTotals.sgst    += pageTotals.sgst;
+        runningTotals.igst    += pageTotals.igst;
+        runningTotals.total   += pageTotals.total;
+
+        // Item rows HTML
+        let rowsHtml = "";
+        // "Brought Forward" row on pages 2+
+        if (pageIdx > 0 && bfTotals.total > 0) {
+          rowsHtml += buildSubtotalRow(
+            `B/F from previous page${pageIdx > 1 ? "s" : ""}`,
+            bfTotals,
+            "background-color:#f9f9f9;font-style:italic;color:#444;"
+          );
+        }
+        chunk.forEach(item => {
+          rowsHtml += buildItemRow(item, globalRowNum++);
+        });
+
+        // Footer row inside tbody
+        let footerRowHtml = "";
+        if (!isLastPage) {
+          // Subtotal + "Continued" banner for intermediate pages
+          footerRowHtml += buildSubtotalRow(
+            `Page ${pageNum} Sub-Total`,
+            pageTotals,
+            "font-weight:bold;background-color:#f2f2f2;"
+          );
+          footerRowHtml += buildSubtotalRow(
+            `Cumulative Total (C/F to next page)`,
+            runningTotals,
+            "background-color:#e8e8e8;font-weight:bold;"
+          );
+          footerRowHtml += `<tr>
+            <td colspan="${COLSPAN}" style="padding:6px 8px;border:1px solid #000;text-align:right;font-style:italic;font-size:10px;color:#555;background:#fafafa;">
+              Continued on Page ${pageNum + 1} of ${totalPages}…
+            </td>
+          </tr>`;
+        } else {
+          // Grand total summary row on final page
+          footerRowHtml += `<tr style="font-weight:bold;background-color:#f2f2f2;">
+            <td colspan="3" style="padding:8px 6px;border:1px solid #000;">GRAND TOTAL</td>
+            <td style="padding:8px 6px;border:1px solid #000;text-align:center;">${runningTotals.qty}</td>
+            <td style="padding:8px 6px;border:1px solid #000;"></td>
+            <td style="padding:8px 6px;border:1px solid #000;"></td>
+            <td style="padding:8px 6px;border:1px solid #000;text-align:right;">${runningTotals.taxable.toFixed(2)}</td>
+            ${isLocal ? `
+              <td colspan="2" style="padding:8px 6px;border:1px solid #000;text-align:right;">${runningTotals.cgst.toFixed(2)}</td>
+              <td colspan="2" style="padding:8px 6px;border:1px solid #000;text-align:right;">${runningTotals.sgst.toFixed(2)}</td>
+            ` : `
+              <td colspan="2" style="padding:8px 6px;border:1px solid #000;text-align:right;">${runningTotals.igst.toFixed(2)}</td>
+              <td colspan="2" style="padding:8px 6px;border:1px solid #000;display:none;"></td>
+            `}
+            <td style="padding:8px 6px;border:1px solid #000;text-align:right;">${runningTotals.total.toFixed(2)}</td>
+          </tr>`;
+        }
+
+        // HSN Summary (last page only)
+        let hsnHtml = "";
+        if (isLastPage) {
+          const hsnMap = {};
+          items.forEach(item => {
+            const key = item.hsn_sac_code || "N/A";
+            if (!hsnMap[key]) hsnMap[key] = { taxable: 0, cgst: 0, sgst: 0, igst: 0, rate: item.gst_rate };
+            hsnMap[key].taxable += parseFloat(item.taxable_value);
+            hsnMap[key].cgst    += parseFloat(item.cgst_amount);
+            hsnMap[key].sgst    += parseFloat(item.sgst_amount);
+            hsnMap[key].igst    += parseFloat(item.igst_amount);
+          });
+          const hsnRows = Object.entries(hsnMap).map(([hsn, d]) => `
+            <tr>
+              <td style="padding:5px 6px;border:1px solid #000;">${hsn}</td>
+              <td style="padding:5px 6px;border:1px solid #000;text-align:right;">${d.taxable.toFixed(2)}</td>
+              <td style="padding:5px 6px;border:1px solid #000;text-align:center;">${isLocal ? (d.rate/2)+"%" : "0%"}</td>
+              <td style="padding:5px 6px;border:1px solid #000;text-align:right;">${d.cgst.toFixed(2)}</td>
+              <td style="padding:5px 6px;border:1px solid #000;text-align:center;">${isLocal ? (d.rate/2)+"%" : "0%"}</td>
+              <td style="padding:5px 6px;border:1px solid #000;text-align:right;">${d.sgst.toFixed(2)}</td>
+              <td style="padding:5px 6px;border:1px solid #000;text-align:center;">${!isLocal ? d.rate+"%" : "0%"}</td>
+              <td style="padding:5px 6px;border:1px solid #000;text-align:right;">${d.igst.toFixed(2)}</td>
+              <td style="padding:5px 6px;border:1px solid #000;text-align:right;">${(d.cgst+d.sgst+d.igst).toFixed(2)}</td>
+            </tr>`).join("");
+          hsnHtml = `
+            <h4 style="margin:24px 0 6px;font-size:11px;text-transform:uppercase;font-weight:bold;border-bottom:1px solid #000;padding-bottom:4px;">HSN Tax Summary</h4>
+            <table style="width:100%;border-collapse:collapse;font-size:10px;">
+              <thead>
+                <tr style="background-color:#f2f2f2;">
+                  <th style="padding:5px 6px;border:1px solid #000;">HSN/SAC</th>
+                  <th style="padding:5px 6px;border:1px solid #000;text-align:right;">TAXABLE (₹)</th>
+                  <th style="padding:5px 6px;border:1px solid #000;text-align:center;">CGST%</th>
+                  <th style="padding:5px 6px;border:1px solid #000;text-align:right;">CGST (₹)</th>
+                  <th style="padding:5px 6px;border:1px solid #000;text-align:center;">SGST%</th>
+                  <th style="padding:5px 6px;border:1px solid #000;text-align:right;">SGST (₹)</th>
+                  <th style="padding:5px 6px;border:1px solid #000;text-align:center;">IGST%</th>
+                  <th style="padding:5px 6px;border:1px solid #000;text-align:right;">IGST (₹)</th>
+                  <th style="padding:5px 6px;border:1px solid #000;text-align:right;">TOTAL TAX (₹)</th>
+                </tr>
+              </thead>
+              <tbody>${hsnRows}</tbody>
+            </table>`;
+        }
+
+        // Summary + Signature (last page only)
+        let summaryHtml = "";
+        if (isLastPage) {
+          const paidVal = parseFloat(invoice.paid_amount || 0);
+          const dueVal  = parseFloat(invoice.grand_total) - paidVal;
+          summaryHtml = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:20px;font-size:12px;">
+              <div style="font-size:12px;color:#444;">
+                <p style="font-style:italic;margin:0 0 8px;"><strong>Notes:</strong> ${invoice.notes || "Thank you for your business."}</p>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <div style="display:flex;justify-content:space-between;"><span>Taxable Value:</span><strong>₹${parseFloat(invoice.taxable_value).toFixed(2)}</strong></div>
+                ${isLocal ? `
+                <div style="display:flex;justify-content:space-between;"><span>CGST:</span><span>₹${parseFloat(invoice.cgst_amount).toFixed(2)}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span>SGST:</span><span>₹${parseFloat(invoice.sgst_amount).toFixed(2)}</span></div>
+                ` : `
+                <div style="display:flex;justify-content:space-between;"><span>IGST:</span><span>₹${parseFloat(invoice.igst_amount).toFixed(2)}</span></div>
+                `}
+                ${parseFloat(invoice.round_off) !== 0 ? `<div style="display:flex;justify-content:space-between;color:#555;"><span>Round Off:</span><span>₹${parseFloat(invoice.round_off).toFixed(2)}</span></div>` : ""}
+                <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:bold;border-top:2px solid #000;padding-top:5px;margin-top:3px;"><span>Grand Total:</span><span>₹${parseFloat(invoice.grand_total).toFixed(2)}</span></div>
+                <div style="display:flex;justify-content:space-between;color:#555;"><span>Amount Paid:</span><span>₹${paidVal.toFixed(2)}</span></div>
+                <div style="display:flex;justify-content:space-between;font-weight:bold;border-top:1px dotted #000;padding-top:4px;color:#fc5000;"><span>Balance Due:</span><span>₹${dueVal.toFixed(2)}</span></div>
+              </div>
+            </div>
+            <div style="margin-top:48px;display:grid;grid-template-columns:1fr 1fr;text-align:center;font-size:12px;">
+              <div><p style="border-top:1px solid #000;width:180px;margin:40px auto 0;padding-top:6px;">Customer Signature</p></div>
+              <div>
+                <p style="font-weight:bold;margin-bottom:4px;">For ${bizName}</p>
+                <div style="font-family:'Alex Brush',cursive;font-size:30px;height:35px;line-height:35px;">Akshay Bhandare</div>
+                <p style="border-top:1px solid #000;width:180px;margin:4px auto 0;padding-top:6px;">Authorized Signature</p>
+              </div>
+            </div>`;
+        }
+
+        const breakStyle = !isLastPage
+          ? "page-break-after:always;break-after:page;"
+          : "page-break-after:avoid;break-after:avoid;";
+
+        pagesHtml += `
+          <div class="print-page" style="${breakStyle}">
+            ${buildPageHeader(pageNum, totalPages)}
+            <table style="width:100%;border-collapse:collapse;font-size:11px;">
+              ${buildTableHead()}
+              <tbody>${rowsHtml}${footerRowHtml}</tbody>
+            </table>
+            ${hsnHtml}
+            ${summaryHtml}
+          </div>`;
       });
 
-      const hsnTbody = document.getElementById("print-hsn-summary-list");
-      hsnTbody.innerHTML = "";
-      Object.keys(hsnSummaryMap).forEach(hsn => {
-        const data = hsnSummaryMap[hsn];
-        const tr = document.createElement("tr");
-
-        const tdH = document.createElement("td");
-        tdH.textContent = hsn;
-        tdH.style.padding = "6px";
-        tdH.style.borderRight = "1px solid #000000";
-        tdH.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdH);
-
-        const tdV = document.createElement("td");
-        tdV.textContent = data.taxableValue.toFixed(2);
-        tdV.style.textAlign = "right";
-        tdV.style.padding = "6px";
-        tdV.style.borderRight = "1px solid #000000";
-        tdV.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdV);
-
-        // CGST rate & amount
-        const tdCr = document.createElement("td");
-        tdCr.textContent = isLocal ? `${(data.gstRate / 2)}%` : "0%";
-        tdCr.style.textAlign = "center";
-        tdCr.style.padding = "6px";
-        tdCr.style.borderRight = "1px solid #000000";
-        tdCr.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdCr);
-
-        const tdCa = document.createElement("td");
-        tdCa.textContent = data.cgst.toFixed(2);
-        tdCa.style.textAlign = "right";
-        tdCa.style.padding = "6px";
-        tdCa.style.borderRight = "1px solid #000000";
-        tdCa.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdCa);
-
-        // SGST rate & amount
-        const tdSr = document.createElement("td");
-        tdSr.textContent = isLocal ? `${(data.gstRate / 2)}%` : "0%";
-        tdSr.style.textAlign = "center";
-        tdSr.style.padding = "6px";
-        tdSr.style.borderRight = "1px solid #000000";
-        tdSr.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdSr);
-
-        const tdSa = document.createElement("td");
-        tdSa.textContent = data.sgst.toFixed(2);
-        tdSa.style.textAlign = "right";
-        tdSa.style.padding = "6px";
-        tdSa.style.borderRight = "1px solid #000000";
-        tdSa.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdSa);
-
-        // IGST rate & amount
-        const tdIr = document.createElement("td");
-        tdIr.textContent = !isLocal ? `${data.gstRate}%` : "0%";
-        tdIr.style.textAlign = "center";
-        tdIr.style.padding = "6px";
-        tdIr.style.borderRight = "1px solid #000000";
-        tdIr.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdIr);
-
-        const tdIa = document.createElement("td");
-        tdIa.textContent = data.igst.toFixed(2);
-        tdIa.style.textAlign = "right";
-        tdIa.style.padding = "6px";
-        tdIa.style.borderRight = "1px solid #000000";
-        tdIa.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdIa);
-
-        // Total tax amount
-        const tdTa = document.createElement("td");
-        tdTa.textContent = data.totalTax.toFixed(2);
-        tdTa.style.textAlign = "right";
-        tdTa.style.padding = "6px";
-        tdTa.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdTa);
-
-        hsnTbody.appendChild(tr);
-      });
-
+      // ── Inject into DOM ──────────────────────────────────────────────────────
+      document.getElementById("print-area").innerHTML = pagesHtml;
 
       openModal("invoice-print-modal");
     } catch (error) {
       alert(`Print Preview Error: ${error.message}`);
     }
   }
+
+
 
   // Print button handlers
   btnTriggerPrint.addEventListener("click", () => {
