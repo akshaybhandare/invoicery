@@ -19,7 +19,7 @@ This document details the implementation of a database-independent, strongly-typ
   - **B2B**: Grouped by customer GSTIN and invoice rate structures.
   - **B2CL**: Grouped by Place of Supply for interstate unregistered transactions above ₹2.5 Lakhs.
   - **B2CS**: Grouped by Place of Supply and tax rate for standard unregistered sales.
-  - **HSN**: Groups items by HSN/SAC codes, total quantities, rates, and values (maps both standard `data` and Zoho-style `hsn_b2c` structures).
+  - **HSN**: Groups items by HSN/SAC codes, total quantities, rates, and values (maps both standard `data` and Invoicery `hsn_b2c` structures).
   - **Doc Issued**: Groups sequential number ranges, totals, and cancels (Section 13).
   - **Optional Sections**: Safely maps CDNR/CDNUR notes, Nil Rated, Advances (`at`), and Adjustments (`txpd`) if supplied in the input.
 

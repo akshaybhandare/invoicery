@@ -359,7 +359,7 @@ export function generateGstr1(input: Gstr1Input): { success: boolean; json?: any
     fp: input.fp,
     gt: input.gt || 0,
     cur_gt: input.cur_gt || 0,
-    version: "ZOHOBOOKS" // Set default version compatibility matching user's sample
+    version: "INVOICERY" // Set default version branding for Invoicery
   };
 
   if (b2b.length > 0) resultJson.b2b = b2b;

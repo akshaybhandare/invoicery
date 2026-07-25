@@ -17,6 +17,7 @@
   <a href="#key-features">Features</a> •
   <a href="#local-installation">Installation</a> •
   <a href="#docker-deployment">Docker Freezing</a> •
+  <a href="#unraid-deployment">Unraid Server</a> •
   <a href="#how-the-magic-works">How it Works</a> •
   <a href="#developer-api">API Documentation</a> •
   <a href="#tests">Tests</a>
@@ -91,7 +92,7 @@ curl -fsSL https://bun.sh/install | bash
 
 1. **Navigate to the workspace folder:**
    ```bash
-   cd myZoho
+   cd invoicery
    ```
 
 2. **Install project dependencies & type definitions:**
@@ -128,6 +129,43 @@ To freeze the environment and guarantee that future OS updates, library updates,
    The `docker-compose.yml` links directories from your host machine so your records are never lost when containers reboot:
    * `./billing.db` ── Persistent SQLite database file.
    * `./attachments/` ── Storehouse for invoice PDF and receipt uploads.
+
+---
+
+<a name="unraid-deployment"></a>
+## 🖥️ Unraid Server Deployment
+
+You can deploy Invoicery to an Unraid server using either Docker Compose or Unraid's Docker Web UI.
+
+### Option A: Docker Compose (Recommended)
+If you use **Docker Compose Manager**, **Dockge**, or **Portainer** on Unraid:
+1. Transfer or clone the repository into your appdata folder:
+   `/mnt/user/appdata/invoicery/`
+2. Open the Unraid Terminal (or SSH in) and run:
+   ```bash
+   cd /mnt/user/appdata/invoicery
+   docker compose up -d --build
+   ```
+3. Access the web app at `http://<YOUR_UNRAID_IP>:3000`.
+
+### Option B: Unraid Web UI (Manual Container Setup)
+1. **Build the image** on your Unraid server terminal:
+   ```bash
+   cd /mnt/user/appdata/invoicery
+   docker build -t invoicery:latest .
+   ```
+2. Go to Unraid **Docker** tab ➔ **Add Container**.
+3. Set **Name** to `invoicery` and **Repository** to `invoicery:latest`.
+4. Add **Port Mapping**:
+   - Container Port: `3000` | Host Port: `3000` (or your choice of host port)
+5. Add **Volume Mappings**:
+   - Container Path: `/app/billing.db` ➔ Host Path: `/mnt/user/appdata/invoicery/billing.db`
+   - Container Path: `/app/attachments` ➔ Host Path: `/mnt/user/appdata/invoicery/attachments`
+6. Add **Environment Variables**:
+   - `PORT`: `3000`
+   - `HOST`: `0.0.0.0`
+   - `NODE_ENV`: `production`
+7. Click **Apply**.
 
 ---
 
