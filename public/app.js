@@ -1904,7 +1904,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. A4 usable height in pixels (screen resolution 96dpi)
     //    A4=297mm, 15mm top+bottom margins => usable ~267mm => ~1009px
     const MM_PX = 96 / 25.4;
-    const USABLE_PX = Math.round(248 * MM_PX); // 248mm leaves ~19mm safety for print scale difference
+    // Print engines render at ~85% of screen pixel measurements.
+    // We measure rows in screen px, so apply a 0.83 factor to convert
+    // the A4 usable height into a safe screen-px equivalent budget.
+    // A4=297mm, 15mm margins => 267mm usable. At 96dpi = 1009px.
+    // 1009 * 0.83 ≈ 837px — this is the actual usable budget per page.
+    const PRINT_SCALE = 0.75; // conservative: screen px → print px conversion factor
+    const USABLE_PX   = Math.round(267 * MM_PX * PRINT_SCALE); // ~755px usable per page
 
     // 3. Measure heights of fixed chrome from the live DOM
     const headerBlock  = document.querySelector("#print-area > div:first-child");
