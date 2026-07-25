@@ -2036,8 +2036,7 @@ document.addEventListener("DOMContentLoaded", () => {
       pages.push(curPageRows);
     }
 
-    // If single page, print directly
-    if (pages.length <= 1) { window.print(); return; }
+    // Always build paginated container for consistent print rendering across single and multi-page invoices
 
     const totalPages = pages.length;
 
