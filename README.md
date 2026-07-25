@@ -1,31 +1,84 @@
+<p align="center">
+  <img src="public/invoicery_logo.jpg" alt="Invoicery Logo" width="140" style="border-radius: 20%; box-shadow: 0 4px 20px rgba(0,0,0,0.15);" />
+</p>
+
 # Invoicery ── Boutique Self-Hosted Invoicing & GST Assistant
 
-An elegant, offline-first, self-hosted billing dashboard, expense ledger, and Indian GST filing assistant. Designed to be lightweight, secure, and run completely locally on your machine. Built with **Bun**, **SQLite**, and **Vanilla JavaScript/CSS**.
+<p align="center">
+  <img src="public/invoicery_banner.jpg" alt="Invoicery Banner" width="100%" style="border-radius: 12px; border: 1px solid #222;" />
+</p>
+
+<p align="center">
+  <strong>An elegant, offline-first billing dashboard, customer-ledger database, and Indian GST filing assistant.</strong><br />
+  <em>Crafted with Bun, SQLite, and Vanilla JS/CSS. Self-contained, secure, and ready to self-host.</em>
+</p>
+
+<p align="center">
+  <a href="#key-features">Features</a> •
+  <a href="#local-installation">Installation</a> •
+  <a href="#docker-deployment">Docker Freezing</a> •
+  <a href="#how-the-magic-works">How it Works</a> •
+  <a href="#developer-api">API Documentation</a> •
+  <a href="#tests">Tests</a>
+</p>
 
 ---
 
-## Key Features
+## 🔮 The Philosophy Behind the "Sorcery"
 
-* **Self-Hosted & Offline-First:** Runs entirely on your local machine with zero external cloud dependencies. Your business data stays *yours*.
-* **Modern, Sleek Dashboard:** A premium, dark-themed user interface displaying real-time analytics (sales, expenses, outstanding balances) and SVG-based analytics charts.
-* **Frictionless Invoicing:** Quickly create, issue, and manage professional sales invoices. Automatically calculates and applies GST (CGST/SGST/IGST) based on the place of supply.
-* **Automated Indian GST Summaries:** Classifies and formats sales data for **GSTR-1** (B2B, B2CL, B2CS, CDNR, CDNUR, Export, SEZ) and **GSTR-3B** return prep.
-* **Customer Ledgers & Outstanding Balances:** Maintain customer profiles, state codes, and track payment transactions directly.
-* **Procurement & Expense Logs:** Track vendor purchases and everyday operating costs to calculate your net profit and input tax credits (ITC).
-* **Robust API Engine:** Programmatic access for external integrations, secured via custom API key headers, to sync inventory, customers, and create invoices.
-* **One-Click Backup & Restore:** Instantly bundle your entire database (`billing.db`) and receipts (`attachments/`) into a single ZIP file, and restore it on any machine in seconds.
+Traditional accounting tools are either heavy, bloated cloud services that harvest your business data, or overly simplified command line trackers. **Invoicery** is designed as a *boutique workshop* for your invoicing needs. 
+
+It mixes the safety of an **offline-first local database** with the convenience of a modern web workspace. Bookkeeping shouldn't feel like a chore; with the right UI and automated tax routing, it feels like magic.
 
 ---
 
-## Tech Stack
+## ⚡ Key Features
 
-* **Runtime:** [Bun](https://bun.sh/) (v1.3.14) — for fast server start times and built-in TypeScript support.
-* **Database:** SQLite via `bun:sqlite` (zero-configuration local file DB).
-* **Frontend:** Vanilla HTML5, CSS3, and ES6 JavaScript (No bloated frameworks or bundlers required).
+* **Complete Local Data Ownership:** Runs entirely in your local network/environment. No third-party servers, no subscription fees, no data leaks.
+* **Instant Tax Classification:** Input customer information once, and the backend tax engine calculates and applies CGST, SGST, or IGST based on the place of supply rules automatically.
+* **Automated Indian GST Prep:** Instantly structures your transactions into audit registers ready for **GSTR-1** (B2B, B2CL, B2CS, CDNR, CDNUR, Export) and **GSTR-3B** tax filing.
+* **Inventory Control & Ledger Sync:** Integrated stocks auto-deduct upon sales invoices and auto-increment upon recording purchases.
+* **Modern Dark Aesthetics:** A bespoke UI constructed with high-contrast, premium dark mode styling and reactive SVG analytical widgets.
+* **Bridges to External Apps:** A secure API token system lets you hook up scanning devices, command line utilities, or inventory scripts directly to your billing book.
+* **Seamless Backups:** Pack up your entire database (`billing.db`) and uploaded files/receipts (`attachments/`) into a single portable zip file, and restore it with one click.
 
 ---
 
-## Installation & Local Run
+## 📐 How the Magic Works
+
+Invoicery uses a lightweight local stack. Here is how your billing, expenses, and tax computations flow:
+
+```mermaid
+graph TD
+    subgraph Client ["Client Browser (Vanilla JS/CSS)"]
+        Dashboard["Dashboard Workspace"]
+        InvForm["Invoice Creator"]
+        ExpForm["Expense/Purchase Logs"]
+    end
+
+    subgraph Backend ["Isolated Bun Server v1.3.14"]
+        Router["Server HTTP Router"]
+        TaxEngine["Tax Routing Engine"]
+        DB["SQLite Database (bun:sqlite)"]
+        GstrGen["GSTR-1 & 3B compiler"]
+    end
+
+    InvForm -->|HTTP REST POST| Router
+    ExpForm -->|HTTP REST POST| Router
+    Router -->|Query/Insert| DB
+    TaxEngine -->|Evaluate State Codes| DB
+    DB -->|Read Data| GstrGen
+    GstrGen -->|Transmit JSON summary| Dashboard
+```
+
+### The State Tax Logic
+When you create an invoice, Invoicery checks the **Merchant State Code** (from settings) against the **Customer Place of Supply State Code**:
+* **Match (Intrastate):** Split tax equally into **CGST** and **SGST** (e.g., 9% CGST + 9% SGST for an 18% rate).
+* **Mismatch (Interstate):** Allocate the entire tax rate to **IGST** (e.g., 18% IGST).
+
+---
+
+## 🚀 Local Installation
 
 ### Prerequisites
 
@@ -34,19 +87,19 @@ Ensure you have the [Bun runtime](https://bun.sh/) installed.
 curl -fsSL https://bun.sh/install | bash
 ```
 
-### Local Setup
+### Running Locally
 
-1. **Clone the repository & enter the folder:**
+1. **Navigate to the workspace folder:**
    ```bash
    cd myZoho
    ```
 
-2. **Install development types:**
+2. **Install project dependencies & type definitions:**
    ```bash
    bun install
    ```
 
-3. **Start the development server (with hot reloading):**
+3. **Start the development server (runs with hot reloading):**
    ```bash
    bun run dev
    ```
@@ -56,71 +109,66 @@ curl -fsSL https://bun.sh/install | bash
    bun run start
    ```
 
-The application will bind to `127.0.0.1:3000` for security compliance, making it accessible at **[http://localhost:3000](http://localhost:3000)**.
+The application starts on port `3000` and binds only to `127.0.0.1` by default for local security compliance. Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
 ---
 
-## Docker Deployment (The Recommended Way to Freeze the App)
+## 🐳 Docker Deployment (The Recommended Way to Freeze the App)
 
-Docker containers provide the ultimate environment freeze. Running Invoicery via Docker guarantees it behaves exactly the same way forever, isolating the Bun runtime, SQLite libraries, and internal dependencies.
+To freeze the environment and guarantee that future OS updates, library updates, or node runtime changes never break your billing system, run Invoicery inside an isolated Docker container.
 
-1. **Build and start the container in the background:**
+1. **Build and start the services:**
    ```bash
    docker compose up -d --build
    ```
-2. **Access Invoicery:**
-   Open **[http://localhost:3000](http://localhost:3000)** in your browser.
+2. **Access the application:**
+   Open **[http://localhost:3000](http://localhost:3000)**. Inside Docker, the server binds to `0.0.0.0` securely to allow port forwarding to your host.
 
-3. **Database and Attachment Persistence:**
-   The `docker-compose.yml` mounts local volumes so your invoice files and data are safely persisted in the host directory:
-   * `./billing.db` ── The SQLite database file containing all structured tables and transactional records.
-   * `./attachments/` ── Uploaded invoices, expenses, or purchase receipts.
-
-4. **Stop the environment:**
-   ```bash
-   docker compose down
-   ```
+3. **Persistent Directories:**
+   The `docker-compose.yml` links directories from your host machine so your records are never lost when containers reboot:
+   * `./billing.db` ── Persistent SQLite database file.
+   * `./attachments/` ── Storehouse for invoice PDF and receipt uploads.
 
 ---
 
-## Environment Variables
+## ⚙️ Environment Variables
 
-You can configure the server port and binding host using environment variables. These are set automatically in Docker, but can also be customized locally:
+You can configure port and bindings easily. These are pre-configured in the Docker Compose workspace but can be modified for local runs:
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `PORT` | `3000` | The port the server listens on |
-| `HOST` | `127.0.0.1` | The bind address. (Set to `0.0.0.0` for Docker/network access) |
-| `NODE_ENV` | `production` | Production environment flag |
+| `PORT` | `3000` | Port server runs on |
+| `HOST` | `127.0.0.1` | Binding address (set to `0.0.0.0` for Docker/LAN access) |
+| `NODE_ENV` | `production` | Running profile flag |
 
 ---
 
-## Developer API Documentation
+## 🔌 Developer API
 
-Invoicery includes a secure REST API for external integrations (e.g. connecting a mobile app, inventory scanner, or custom script).
+Invoicery includes a secure programmatic integration layer to connect custom external scripts.
 
 ### Authentication
-All API endpoints require a custom header or bearer token. Configure your API key via the **Settings** panel in the UI.
+Include one of the following credentials inside your HTTP headers (manage your custom keys in the **Settings** panel):
 
-* **API Key Header:** `x-api-key: your_api_key_here`
-* **Bearer Token:** `Authorization: Bearer your_api_key_here`
+* **Custom Key Header:** `x-api-key: <your_key>`
+* **Standard Authorization Header:** `Authorization: Bearer <your_key>`
 
-### Key Endpoints
+### Key Endpoint Routings
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/dashboard` | Fetches dashboard summary cards and transaction metrics |
-| `POST` | `/api/invoices` | Creates a new invoice and deducts product inventory stock |
-| `POST` | `/api/purchases` | Registers a procurement invoice and increments product stock |
-| `POST` | `/api/products/adjust` | Programmatic inventory adjustment |
-| `GET` | `/api/backup` | Exports the database & attachments as a ZIP file |
-| `POST` | `/api/restore` | Uploads a backup ZIP file and overwrites the active database |
+| Method | Endpoint | Payload Format | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/dashboard` | `JSON` | Real-time analytics charts and summaries |
+| `POST` | `/api/invoices` | `JSON` | Generates a sales record & subtracts stock |
+| `POST` | `/api/purchases` | `JSON` | Creates a vendor receipt & increments stock |
+| `POST` | `/api/products/adjust` | `JSON` | Direct stock adjustment override |
+| `GET` | `/api/backup` | `Binary Stream` | Combines `billing.db` and attachments into a ZIP |
+| `POST` | `/api/restore` | `Multipart FormData` | Overwrites active database from a backup ZIP |
 
 ---
 
-## Test Suite
+## 🧪 Test Suite
 
-Verify system integrity by running the validation suite containing integration, tax logic, and UI structural checks:
+Run the full local test suite (incorporating tax calculation rounding, schema validation, state matching, and layout integrity checks) via:
 
 ```bash
 bun test
