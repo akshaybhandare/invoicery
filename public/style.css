@@ -844,17 +844,12 @@ h1, h2, h3, h4, h5, h6,
   /* Full black grid for the items table — constrained to page width */
   .inv-print-table {
     width: 100%;
-    max-width: 100%;
-    table-layout: fixed;
     border-collapse: collapse;
     margin-top: 12px;
-    box-sizing: border-box;
   }
   .inv-print-table th,
   .inv-print-table td {
     border: 1px solid #000 !important;
-    overflow: hidden;
-    word-break: break-word;
   }
 
   /* Continuation mini-header */
