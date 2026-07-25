@@ -829,6 +829,7 @@ h1, h2, h3, h4, h5, h6,
     display: block !important;
     width: 100%;
     box-sizing: border-box;
+    padding: 0 4mm !important; /* 4mm side padding keeps right border line safely inside printable margin boundary */
     font-family: 'DM Sans', sans-serif;
     font-size: 11px;
     color: #000000;

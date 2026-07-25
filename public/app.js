@@ -1919,12 +1919,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // We use a safe target printable height of 235mm (~888px at 96dpi) to account
     // for printer hardware unprintable borders, browser header/footers, and line-heights.
     const MM_TO_PX    = 96 / 25.4;
-    const USABLE_H_PX = Math.round(235 * MM_TO_PX); // ~888px
+    const USABLE_H_PX = Math.round(255 * MM_TO_PX); // ~963px (allows single-page invoices with up to ~8 items to stay on 1 page)
 
     const sandbox = document.createElement("div");
     sandbox.style.cssText = [
       "position:absolute", "left:-99999px", "top:0",
-      "width:calc(210mm - 30mm)",   // 180mm exact print content width
+      "width:calc(210mm - 38mm)",   // 172mm exact print content width (210mm - 30mm margins - 8mm padding)
       "visibility:hidden", "overflow:visible",
       "font-family:'DM Sans',sans-serif", "font-size:11px"
     ].join(";");
