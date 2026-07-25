@@ -1150,7 +1150,7 @@ const server = serve({
     // --- API: Backup Utility ---
     if (url.pathname === "/api/backup" && method === "GET") {
       try {
-        const zipPath = "/tmp/myzoho_backup.zip";
+        const zipPath = "/tmp/invoicery_backup.zip";
         
         // Quietly zip the database and local files attachments folder recursively
         const proc = spawnSync("zip", ["-r", "-q", zipPath, "billing.db", "attachments"]);
@@ -1167,7 +1167,7 @@ const server = serve({
         return new Response(fileData, {
           headers: {
             "Content-Type": "application/zip",
-            "Content-Disposition": 'attachment; filename="myzoho_backup.zip"',
+            "Content-Disposition": 'attachment; filename="invoicery_backup.zip"',
             "Cache-Control": "no-store, no-cache, must-revalidate"
           }
         });

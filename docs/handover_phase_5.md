@@ -53,5 +53,5 @@ This document details the completed implementation of Phase 5 deliverables under
 4. Click the **`REPORTS`** tab:
    - Select a month (e.g. `2026-07`).
    - Check **`GSTR-1`**, **`GSTR-3B`**, and **`PAYMENTS TRANSACTIONS LEDGER`** sub-tabs to audit filing sheets.
-   - Click **`DOWNLOAD ZIP BACKUP`** to download `myzoho_backup.zip`.
+   - Click **`DOWNLOAD ZIP BACKUP`** to download `invoicery_backup.zip`.
    - Upload the ZIP file into the Restore input to test overwriting and auto-reloading!

@@ -1,7 +1,7 @@
 {
-  "name": "my-zoho-gst",
+  "name": "invoicery",
   "version": "1.0.0",
-  "description": "Personal Billing & GST Assistant built with Bun, SQLite, and Vanilla JS/CSS",
+  "description": "Invoicery - Self-hosted boutique workshop for crafting billing, tracking expenses, and generating GST reports with Bun, SQLite, and Vanilla JS/CSS",
   "main": "src/server.ts",
   "type": "module",
   "scripts": {
