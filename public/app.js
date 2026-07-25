@@ -1904,7 +1904,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. A4 usable height in pixels (screen resolution 96dpi)
     //    A4=297mm, 15mm top+bottom margins => usable ~267mm => ~1009px
     const MM_PX = 96 / 25.4;
-    const USABLE_PX = Math.round(267 * MM_PX);
+    const USABLE_PX = Math.round(248 * MM_PX); // 248mm leaves ~19mm safety for print scale difference
 
     // 3. Measure heights of fixed chrome from the live DOM
     const headerBlock  = document.querySelector("#print-area > div:first-child");
