@@ -879,15 +879,33 @@ h1, h2, h3, h4, h5, h6,
     border: 1px solid #ccc !important;
   }
 
-  /* Summary block must not split — strip screen-mode card styling */
-  .invoice-summary-block {
+  /* Summary, HSN, and Signature blocks must never split across pages */
+  #print-summary-block,
+  #print-hsn-heading,
+  #print-hsn-table,
+  #print-signatures-block,
+  .inv-footer-group {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    margin-top: 20px !important;
+  }
+
+  /* Compact print margins to prevent unnecessary page overflow */
+  #print-summary-block {
+    margin-top: 16px !important;
     background: transparent !important;
     border-radius: 0 !important;
     box-shadow: none !important;
   }
+
+  #print-hsn-heading {
+    margin-top: 20px !important;
+    margin-bottom: 6px !important;
+  }
+
+  #print-signatures-block {
+    margin-top: 28px !important;
+  }
+
   /* Strip card chrome from any nested totals pane */
   .inv-print-page .totals-pane {
     background: transparent !important;

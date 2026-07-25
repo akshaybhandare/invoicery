@@ -2102,12 +2102,16 @@ document.addEventListener("DOMContentLoaded", () => {
       tbl.appendChild(tb);
       pg.appendChild(tbl);
 
-      // Summary block on last page only
+      // Summary & signature blocks on last page — wrapped in an unbroken footer group
       if (isLastPg) {
-        if (summaryClone) pg.appendChild(summaryClone.cloneNode(true));
-        if (hsnLblClone)  pg.appendChild(hsnLblClone.cloneNode(true));
-        if (hsnTblClone)  pg.appendChild(hsnTblClone.cloneNode(true));
-        if (sigClone)     pg.appendChild(sigClone.cloneNode(true));
+        const footerGroup = document.createElement("div");
+        footerGroup.className = "inv-footer-group";
+        footerGroup.style.cssText = "page-break-inside:avoid !important;break-inside:avoid !important;";
+        if (summaryClone) footerGroup.appendChild(summaryClone.cloneNode(true));
+        if (hsnLblClone)  footerGroup.appendChild(hsnLblClone.cloneNode(true));
+        if (hsnTblClone)  footerGroup.appendChild(hsnTblClone.cloneNode(true));
+        if (sigClone)     footerGroup.appendChild(sigClone.cloneNode(true));
+        pg.appendChild(footerGroup);
       }
 
       container.appendChild(pg);
