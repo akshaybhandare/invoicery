@@ -809,17 +809,23 @@ h1, h2, h3, h4, h5, h6,
    5. Media Print Layout (A4 Tax Invoice Sheet Formatting)
    ========================================================================== */
 @media print {
-  body {
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
     background-color: #ffffff !important;
     color: #000000 !important;
+    display: block !important;
   }
+  
   body * {
     visibility: hidden;
   }
+  
   #invoice-print-modal, 
   #invoice-print-modal * {
     visibility: visible;
   }
+  
   #invoice-print-modal {
     position: absolute;
     left: 0;
@@ -832,12 +838,15 @@ h1, h2, h3, h4, h5, h6,
     margin: 0 !important;
     z-index: 9999 !important;
     display: block !important;
+    overflow: visible !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
+  
   .print-actions-toolbar {
     display: none !important;
   }
+  
   .modal-card {
     border: none !important;
     width: 100% !important;
@@ -845,7 +854,12 @@ h1, h2, h3, h4, h5, h6,
     padding: 0 !important;
     margin: 0 !important;
     background-color: #ffffff !important;
+    box-shadow: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-y: visible !important;
   }
+  
   /* Repeat headers and prevent table rows from splitting across pages */
   table {
     page-break-inside: auto;
