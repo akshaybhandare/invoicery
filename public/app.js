@@ -1902,13 +1902,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const allRows      = Array.from(srcTbody.querySelectorAll("tr"));
     if (allRows.length === 0) { window.print(); return; }
 
-    const allPrintDivs = printArea ? Array.from(printArea.querySelectorAll(":scope > div")) : [];
-    const headerBlock  = allPrintDivs[0] || null;
-    const addressBlock = allPrintDivs[1] || null;
-    const summaryBlock = allPrintDivs[2] || null;
-    const sigBlock     = allPrintDivs[allPrintDivs.length - 1] || null;
-    const hsnLabel     = printArea ? printArea.querySelector("h4") : null;
-    const hsnTable     = hsnLabel ? hsnLabel.nextElementSibling : null;
+    const headerBlock  = document.getElementById("print-header-block");
+    const addressBlock = document.getElementById("print-address-block");
+    const summaryBlock = document.getElementById("print-summary-block");
+    const hsnLabel     = document.getElementById("print-hsn-heading");
+    const hsnTable     = document.getElementById("print-hsn-table");
+    const sigBlock     = document.getElementById("print-signatures-block");
 
     // ── Measure everything at EXACT print content width using sandbox ─────────
     // A4 = 210mm wide x 297mm high.
