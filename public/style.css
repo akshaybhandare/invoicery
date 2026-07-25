@@ -809,6 +809,11 @@ h1, h2, h3, h4, h5, h6,
    5. Media Print Layout (A4 Tax Invoice Sheet Formatting)
    ========================================================================== */
 @media print {
+  @page {
+    size: A4;
+    margin: 20mm 15mm 20mm 15mm;
+  }
+
   html, body {
     height: auto !important;
     overflow: visible !important;
@@ -863,16 +868,27 @@ h1, h2, h3, h4, h5, h6,
   /* Repeat headers and prevent table rows from splitting across pages */
   table {
     page-break-inside: auto;
+    width: 100% !important;
+    border-collapse: collapse !important;
   }
   tr {
     page-break-inside: avoid !important;
     page-break-after: auto;
   }
   thead {
-    display: table-header-group;
+    display: table-header-group !important;
   }
   tfoot {
-    display: table-footer-group;
+    display: table-footer-group !important;
+  }
+  th, td {
+    page-break-inside: avoid !important;
+  }
+  
+  /* Ensure the summary block doesn't split across pages */
+  .invoice-summary-block {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }
 
