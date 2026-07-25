@@ -806,95 +806,109 @@ h1, h2, h3, h4, h5, h6,
 }
 
 /* ==========================================================================
-   5. Media Print Layout (A4 Tax Invoice Sheet Formatting)
+   5. Media Print Layout (A4 Tax Invoice Native CSS Paged Media Formatting)
    ========================================================================== */
 @media print {
   @page {
     size: A4;
-    margin: 15mm;
+    margin: 12mm 15mm;
   }
 
-  /* When printing, hide everything except our paginated container */
-  body > *:not(#paginated-print-root) {
+  /* Reset document for native browser print flow */
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide screen chrome */
+  .nav-wrapper,
+  main,
+  .caldera-footer,
+  .print-actions-toolbar,
+  .modal-overlay:not(#invoice-print-modal) {
     display: none !important;
   }
 
-  /* Each .inv-print-page is one physical A4 page */
-  #paginated-print-root {
+  /* Flatten modal overlay to native print document */
+  #invoice-print-modal {
+    position: static !important;
     display: block !important;
-    width: 100%;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
   }
 
-  .inv-print-page {
-    display: block !important;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 0 4mm !important; /* 4mm side padding keeps right border line safely inside printable margin boundary */
-    font-family: 'DM Sans', sans-serif;
-    font-size: 11px;
-    color: #000000;
-    background: #ffffff;
+  #invoice-print-modal .modal-card {
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 
-  /* Never split a table row across pages */
+  #print-area {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Repeat table header automatically across printed pages */
+  thead {
+    display: table-header-group !important;
+  }
+
+  /* Standard table print rules */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 12px !important;
+  }
+
+  /* Never cut a table row horizontally across pages */
   tr {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
 
-  /* Full black grid for the items table — constrained to page width */
-  .inv-print-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 12px;
+  th, td {
+    border: 1px solid #000000 !important;
   }
-  .inv-print-table th,
-  .inv-print-table td {
-    border: 1px solid #000 !important;
-  }
-  .inv-print-table tr th:last-child,
-  .inv-print-table tr td:last-child {
+
+  /* Guarantee rightmost border line is always drawn on th/td */
+  tr th:last-child,
+  tr td:last-child {
     border-right: 1px solid #000000 !important;
   }
 
-  /* Continuation mini-header */
-  .inv-continuation-header {
-    display: flex !important;
-    justify-content: space-between;
-    border-bottom: 1px solid #000;
-    padding-bottom: 8px;
-    margin-bottom: 12px;
-    font-size: 12px;
-  }
-
-  /* Carried-forward / continues rows */
-  .inv-row-bf td,
-  .inv-row-continues td {
-    padding: 5px 8px !important;
-    font-style: italic;
-    font-size: 10px;
-    color: #555;
-    text-align: right;
-    background: #fafafa;
-    border: 1px solid #ccc !important;
-  }
-
-  /* Summary, HSN, and Signature blocks must never split across pages */
+  /* Keep summary, HSN table, and signature blocks intact */
   #print-summary-block,
   #print-hsn-heading,
   #print-hsn-table,
-  #print-signatures-block,
-  .inv-footer-group {
+  #print-signatures-block {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
 
-  /* Compact print margins to prevent unnecessary page overflow */
+  /* Compact margins for print */
   #print-summary-block {
     margin-top: 16px !important;
     background: transparent !important;
     border-radius: 0 !important;
-    box-shadow: none !important;
   }
 
   #print-hsn-heading {
@@ -903,20 +917,7 @@ h1, h2, h3, h4, h5, h6,
   }
 
   #print-signatures-block {
-    margin-top: 28px !important;
-  }
-
-  /* Strip card chrome from any nested totals pane */
-  .inv-print-page .totals-pane {
-    background: transparent !important;
-    border-radius: 0 !important;
-    border: none !important;
-    padding: 0 !important;
-  }
-
-  /* When single-page fallback (paginated-print-root absent): original modal prints */
-  body:has(#paginated-print-root) .modal-overlay {
-    display: none !important;
+    margin-top: 24px !important;
   }
 }
 
