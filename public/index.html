@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Billing & GST Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Bebas+Neue&family=DM+Sans:wght@500&family=Source+Code+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- 1. Caldera Floating Nav Bar (Limestone Pill Container on Pumice) -->
+  <div class="nav-wrapper">
+    <nav class="nav-pill-container">
+      <div class="nav-left">
+        <a href="#dashboard" class="nav-logo">
+          <span class="logo-icon">▲</span>
+          <span class="logo-text">MYZOHO GST</span>
+        </a>
+        <span class="nav-divider"></span>
+        <ul class="nav-menu">
+          <li><a href="#dashboard" class="nav-menu-link active" data-tab="dashboard">DASHBOARD</a></li>
+          <li><a href="#customers" class="nav-menu-link" data-tab="customers">CUSTOMERS</a></li>
+          <li><a href="#products" class="nav-menu-link" data-tab="products">PRODUCTS</a></li>
+          <li><a href="#invoices" class="nav-menu-link" data-tab="invoices">INVOICES</a></li>
+          <li><a href="#purchases" class="nav-menu-link" data-tab="purchases">PURCHASES</a></li>
+          <li><a href="#expenses" class="nav-menu-link" data-tab="expenses">EXPENSES</a></li>
+          <li><a href="#reports" class="nav-menu-link" data-tab="reports">REPORTS</a></li>
+          <li><a href="#settings" class="nav-menu-link" data-tab="settings">SETTINGS</a></li>
+        </ul>
+      </div>
+      <div class="nav-right">
+        <div class="nav-search-box">
+          <span class="search-glyph">🔍</span>
+          <input type="text" placeholder="SEARCH (Ctrl + F)" id="global-search-input">
+        </div>
+        <div class="status-badge connected" id="status-badge">
+          <span class="badge-dot"></span>
+          <span class="badge-text" id="status-text">ONLINE</span>
+        </div>
+        <button class="btn btn-primary-pill" id="btn-quick-invoice">+ QUICK INVOICE</button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- 2. Main content area (Pumice canvas floor, limestone cards) -->
+  <main class="main-content">
+    <section class="screen-container">
+      
+      <!-- Tab: Dashboard -->
+      <div class="tab-content active" id="tab-dashboard">
+        
+        <!-- Hero Section (Limestone Content Card) -->
+        <div class="hero-section">
+          <div class="section-container-width">
+            <div class="hero-limestone-card">
+              <span class="tag-badge">KARNATAKA GST</span>
+              <h1 class="hero-title">FORGE BILLS ON WARM LIMESTONE</h1>
+              <p class="hero-tagline">Track personal business ledgers, customer receipts, and operational expenses in an offline-first workspace. Minimal chrome. Architectural weight.</p>
+              <div class="hero-action-buttons">
+                <a href="#invoices" class="btn btn-primary-pill" data-tab="invoices">CREATE INVOICE</a>
+                <a href="#settings" class="btn btn-secondary-pill" data-tab="settings">CHECK SETTINGS</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Section (Limestone stat cards on Pumice floor) -->
+        <div class="stats-band">
+          <div class="section-container-width">
+            <h2 class="section-heading">MONTHLY OVERVIEW</h2>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <span class="stat-label">Sales</span>
+                <span class="stat-value" id="stat-sales">₹0.00</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Expenses</span>
+                <span class="stat-value" id="stat-expenses">₹0.00</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Net Profit</span>
+                <span class="stat-value" id="stat-profit">₹0.00</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Profit Margin</span>
+                <span class="stat-value" id="stat-margin">0.0%</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">GST Payable</span>
+                <span class="stat-value" id="stat-gst">₹0.00</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Outstanding</span>
+                <span class="stat-value" id="stat-outstanding">₹0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics Band (SVG charts) -->
+        <div class="stats-band" style="padding-top: 0;">
+          <div class="section-container-width">
+            <h2 class="section-heading">FINANCIAL ANALYTICS</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+              
+              <!-- Profit Trends Chart -->
+              <div class="stat-card" style="align-items: stretch; padding: 24px; min-height: 250px;">
+                <span class="stat-label" style="margin-bottom: 16px; display: block; font-weight: bold; font-size: 13px;">SALES VS EXPENSES TRENDS (LAST 6 MONTHS)</span>
+                <div style="flex: 1; min-height: 180px; position: relative;" id="trend-chart-container">
+                  <!-- SVG injected dynamically -->
+                </div>
+              </div>
+
+              <!-- Expenses breakdown Chart -->
+              <div class="stat-card" style="align-items: stretch; padding: 24px; min-height: 250px;">
+                <span class="stat-label" style="margin-bottom: 16px; display: block; font-weight: bold; font-size: 13px;">EXPENSES CATEGORY DISTRIBUTION (THIS MONTH)</span>
+                <div style="flex: 1; min-height: 180px; display: flex; align-items: center;" id="distribution-chart-container">
+                  <!-- SVG injected dynamically -->
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- New Dashboard Widgets Band: Recent Invoices & Top Products -->
+        <div class="stats-band" style="padding-top: 0;">
+          <div class="section-container-width">
+            <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px;">
+              
+              <!-- Recent Invoices Mini Table -->
+              <div class="stat-card" style="align-items: stretch; padding: 24px; min-height: 250px;">
+                <span class="stat-label" style="margin-bottom: 16px; display: block; font-weight: bold; font-size: 13px;">RECENT SALES INVOICES</span>
+                <div class="table-responsive" style="overflow-x: auto; flex: 1;">
+                  <table class="data-table" style="font-size: 11px; width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>INVOICE NO</th>
+                        <th>DATE</th>
+                        <th>CUSTOMER</th>
+                        <th>GRAND TOTAL</th>
+                        <th>STATUS</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dash-recent-invoices-list">
+                      <tr><td colspan="5" style="text-align: center; color: #777;">LOADING...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Top Products Widget -->
+              <div class="stat-card" style="align-items: stretch; padding: 24px; min-height: 250px;">
+                <span class="stat-label" style="margin-bottom: 16px; display: block; font-weight: bold; font-size: 13px;">TOP PRODUCTS BY SALES VOLUME</span>
+                <div id="dash-top-products-container" style="flex: 1; display: flex; flex-direction: column; gap: 12px; justify-content: center;">
+                  <div style="text-align: center; color: #777;">LOADING...</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- System Verification (Ember Stat Card) -->
+        <div class="verification-band">
+          <div class="section-container-width">
+            <div class="stat-feature-card-ember">
+              <div class="card-header">
+                <span class="tag-badge-light">CORE STACK STATUS</span>
+                <h2 class="ember-card-title">PHASE 1 SECURE ENGINE ONLINE</h2>
+              </div>
+              
+              <div class="verification-card-content">
+                <table class="verification-table">
+                  <thead>
+                    <tr>
+                      <th>SUBSYSTEM</th>
+                      <th>STATUS TAG</th>
+                      <th>LOG INFO</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Offline Host</td>
+                      <td><span class="tag-badge-light">Bun Core</span></td>
+                      <td>Executing on V8 server-side runtime</td>
+                    </tr>
+                    <tr>
+                      <td>SQLite Schema</td>
+                      <td><span class="tag-badge-light">Mounted</span></td>
+                      <td>12 relational schemas loaded in billing.db</td>
+                    </tr>
+                    <tr>
+                      <td>Tax Context</td>
+                      <td><span class="tag-badge-light">Karnataka (29)</span></td>
+                      <td>Default place of supply mapping active</td>
+                    </tr>
+                    <tr>
+                      <td>Invoice Format</td>
+                      <td><span class="tag-badge-light">INV-0000XX</span></td>
+                      <td>Incremental counters active from #000001</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="alert-chalk">
+                  <strong>HANDOVER NOTE:</strong> Local database tables are successfully seeded. Navigation uses client routing.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Tab: Customers -->
+      <div class="tab-content" id="tab-customers">
+        <div class="section-container-width">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">CUSTOMERS</h1>
+              <p class="screen-subtitle">Track customer ledger state and billing profiles</p>
+            </div>
+            <button class="btn btn-primary-pill" id="btn-add-customer">+ ADD CUSTOMER</button>
+          </div>
+          <div class="content-card">
+            <div class="table-search-row">
+              <input type="text" id="customer-search" class="search-input-field" placeholder="FILTER CUSTOMERS BY NAME, PHONE, OR GSTIN...">
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="customers-table">
+                <thead>
+                  <tr>
+                    <th>CUSTOMER ID</th>
+                    <th>NAME</th>
+                    <th>GSTIN</th>
+                    <th>PHONE</th>
+                    <th>STATE</th>
+                    <th>OUTSTANDING BALANCE</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="customers-list">
+                  <!-- Loaded dynamically -->
+                </tbody>
+              </table>
+              <div class="table-empty-message" id="customers-empty" style="display: none;">
+                NO CUSTOMERS MATCHING YOUR SEARCH.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Products -->
+      <div class="tab-content" id="tab-products">
+        <div class="section-container-width">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">PRODUCTS & SERVICES</h1>
+              <p class="screen-subtitle">Manage HSN codes, SAC identifiers, and prices</p>
+            </div>
+            <button class="btn btn-primary-pill" id="btn-add-product">+ ADD PRODUCT</button>
+          </div>
+          <div class="content-card">
+            <div class="table-search-row">
+              <input type="text" id="product-search" class="search-input-field" placeholder="FILTER PRODUCTS BY NAME OR SKU...">
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="products-table">
+                <thead>
+                  <tr>
+                    <th>SKU / ID</th>
+                    <th>PRODUCT NAME</th>
+                    <th>HSN/SAC</th>
+                    <th>GST RATE</th>
+                    <th>SELLING PRICE</th>
+                    <th>STOCK</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="products-list">
+                  <!-- Loaded dynamically -->
+                </tbody>
+              </table>
+              <div class="table-empty-message" id="products-empty" style="display: none;">
+                NO PRODUCTS REGISTERED OR MATCHING SEARCH.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Invoices -->
+      <div class="tab-content" id="tab-invoices">
+        <div class="section-container-width">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">SALES INVOICES</h1>
+              <p class="screen-subtitle">Create, track, and print GSTR-compliant invoice documents</p>
+            </div>
+            <button class="btn btn-primary-pill" id="btn-create-invoice">+ CREATE INVOICE</button>
+          </div>
+          
+          <div class="content-card">
+            <div class="table-responsive">
+              <table class="data-table" id="invoices-table">
+                <thead>
+                  <tr>
+                    <th>INVOICE NO</th>
+                    <th>DATE</th>
+                    <th>CUSTOMER</th>
+                    <th>PLACE OF SUPPLY</th>
+                    <th>GRAND TOTAL</th>
+                    <th>PAID</th>
+                    <th>BALANCE DUE</th>
+                    <th>STATUS</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="invoices-list">
+                  <!-- Loaded dynamically -->
+                </tbody>
+              </table>
+              <div class="table-empty-message" id="invoices-empty" style="display: none;">
+                NO INVOICES RECORDED. CLICK "+ CREATE INVOICE" TO BEGIN.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Purchases -->
+      <div class="tab-content" id="tab-purchases">
+        <div class="section-container-width">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">PURCHASES</h1>
+              <p class="screen-subtitle">Record incoming vendor supplies and input credit</p>
+            </div>
+            <button class="btn btn-primary-pill" id="btn-create-purchase">+ RECORD PURCHASE</button>
+          </div>
+          <div class="content-card">
+            <div class="table-responsive">
+              <table class="data-table" id="purchases-table">
+                <thead>
+                  <tr>
+                    <th>PURCHASE NO</th>
+                    <th>DATE</th>
+                    <th>SUPPLIER</th>
+                    <th>SUPPLIER INVOICE NO</th>
+                    <th>TAXABLE VALUE</th>
+                    <th>TOTAL GST</th>
+                    <th>GRAND TOTAL</th>
+                    <th>STATUS</th>
+                    <th>BILL FILE</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="purchases-list">
+                  <!-- Loaded dynamically -->
+                </tbody>
+              </table>
+              <div class="table-empty-message" id="purchases-empty" style="display: none;">
+                NO PURCHASES REGISTERED. CLICK "+ RECORD PURCHASE" TO BEGIN.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Expenses -->
+      <div class="tab-content" id="tab-expenses">
+        <div class="section-container-width">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">EXPENSES</h1>
+              <p class="screen-subtitle">Log utility costs and general operating overheads</p>
+            </div>
+            <button class="btn btn-primary-pill" id="btn-create-expense">+ RECORD EXPENSE</button>
+          </div>
+          <div class="content-card">
+            <div class="table-responsive">
+              <table class="data-table" id="expenses-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>DATE</th>
+                    <th>CATEGORY</th>
+                    <th>AMOUNT</th>
+                    <th>GST PAID</th>
+                    <th>PAYMENT MODE</th>
+                    <th>REFERENCE</th>
+                    <th>NOTES</th>
+                    <th>RECEIPT</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="expenses-list">
+                  <!-- Loaded dynamically -->
+                </tbody>
+              </table>
+              <div class="table-empty-message" id="expenses-empty" style="display: none;">
+                NO EXPENSES REGISTERED. CLICK "+ RECORD EXPENSE" TO BEGIN.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Reports -->
+      <div class="tab-content" id="tab-reports">
+        <div class="section-container-width">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">FINANCIAL INTELLIGENCE & GST REPORTS</h1>
+              <p class="screen-subtitle">Summaries ready for GSTR-1 and GSTR-3B filings, ledger audits, and system backup utilities</p>
+            </div>
+          </div>
+
+          <!-- Global Report Period Control Panel -->
+          <div class="content-card" style="margin-bottom: 24px; padding: 20px; border-style: dotted;">
+            <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+              
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <label for="export-period-type" style="font-size: 11px; font-weight: bold; text-transform: uppercase;">Period Mode:</label>
+                <select id="export-period-type" class="form-select" style="width: 150px; margin: 0; padding: 4px 12px; height: 32px; border-radius: 6px; font-size: 11px;">
+                  <option value="month" selected>Monthly Return</option>
+                  <option value="quarter">Quarterly Return</option>
+                  <option value="custom">Custom Date Range</option>
+                </select>
+              </div>
+
+              <!-- Month Choice (Primary global month picker) -->
+              <div id="export-month-wrap" style="display: flex; align-items: center; gap: 8px;">
+                <label for="report-month-select" style="font-size: 11px; font-weight: bold; text-transform: uppercase;">Filing Month:</label>
+                <input type="month" id="report-month-select" class="form-input" style="padding: 4px 12px; font-size: 11px; margin: 0; width: 140px; height: 32px; border-radius: 6px;" value="2026-07">
+              </div>
+
+              <!-- Quarter Choice -->
+              <div id="export-quarter-wrap" style="display: none; align-items: center; gap: 8px;">
+                <label for="export-quarter-select" style="font-size: 11px; font-weight: bold; text-transform: uppercase;">Quarter:</label>
+                <select id="export-quarter-select" class="form-select" style="padding: 4px 12px; font-size: 11px; margin: 0; width: 160px; height: 32px; border-radius: 6px;">
+                  <option value="2026-Q1">2026 Q1 (Jan-Mar)</option>
+                  <option value="2026-Q2">2026 Q2 (Apr-Jun)</option>
+                  <option value="2026-Q3" selected>2026 Q3 (Jul-Sep)</option>
+                  <option value="2026-Q4">2026 Q4 (Oct-Dec)</option>
+                </select>
+              </div>
+
+              <!-- Custom Period Choice -->
+              <div id="export-custom-wrap" style="display: none; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <label for="export-from-date" style="font-size: 11px; font-weight: bold; text-transform: uppercase;">From:</label>
+                  <input type="date" id="export-from-date" class="form-input" style="padding: 4px 12px; font-size: 11px; margin: 0; width: 130px; height: 32px; border-radius: 6px;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <label for="export-to-date" style="font-size: 11px; font-weight: bold; text-transform: uppercase;">To:</label>
+                  <input type="date" id="export-to-date" class="form-input" style="padding: 4px 12px; font-size: 11px; margin: 0; width: 130px; height: 32px; border-radius: 6px;">
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- GST Reports Content Cards Grid -->
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+            <div>
+              <!-- Navigation for Report Sub-Tabs -->
+              <div style="display: flex; gap: 16px; margin-bottom: 16px; border-bottom: 2px dotted #ccc; padding-bottom: 8px; flex-wrap: wrap;">
+                <button class="btn btn-secondary-pill sub-tab-btn active" data-subtab="rep-gstr1">GSTR-1 (SALES OUTWARD)</button>
+                <button class="btn btn-secondary-pill sub-tab-btn" data-subtab="rep-gstr3b">GSTR-3B (TAX SUMMARY & ITC)</button>
+                <button class="btn btn-secondary-pill sub-tab-btn" data-subtab="rep-ledger">PAYMENTS TRANSACTIONS LEDGER</button>
+                <button class="btn btn-secondary-pill sub-tab-btn" data-subtab="rep-registers">TAX REGISTERS & PERIOD SUMMARIES</button>
+              </div>
+
+              <!-- Subtab: GSTR-1 -->
+              <div class="report-subtab-content" id="rep-gstr1">
+                <div class="content-card">
+                  <h3 style="margin-bottom: 12px;">GSTR-1: OUTWARD SUPPLIES SUMMARY</h3>
+
+                  <!-- GSTN GSTR-1 JSON Exporter Card -->
+                  <div style="background-color: var(--color-limestone); padding: var(--spacing-16); border: 1.5px dashed var(--color-obsidian); border-radius: 8px; margin-bottom: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                      <div>
+                        <h4 style="margin: 0; font-size: 13px; font-weight: bold; text-transform: uppercase;">⚡ GSTN GSTR-1 JSON PORTAL EXPORTER</h4>
+                        <p style="font-size: 12px; margin: 4px 0 0 0; color: #555;">Generate a fully validated, portal-ready GSTR-1 compatible JSON file for the currently selected period above.</p>
+                      </div>
+                      <button class="btn btn-primary-pill" id="btn-export-gstr1-json" style="padding: 6px 16px; font-size: 11px; font-weight: bold; height: 32px; border-radius: 16px;">📦 EXPORT COMPATIBLE JSON</button>
+                    </div>
+
+                    <!-- Validation Errors Alert Box -->
+                    <div id="gstr1-validation-error-box" style="display: none; background-color: #ffe6e6; border: 1.5px solid var(--color-ember); padding: 12px; border-radius: 8px; margin-top: 12px;">
+                      <strong style="color: var(--color-ember); font-size: 12px; display: block; margin-bottom: 6px;">❌ RETURN DATA VALIDATION FAILED</strong>
+                      <ul id="gstr1-validation-errors-list" style="font-size: 11px; color: #555; padding-left: 16px; margin: 0; line-height: 1.5;">
+                        <!-- Injected -->
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <h4 style="margin-top: 16px; margin-bottom: 8px; font-size: 13px;">SECTION 4A, 4B: B2B INVOICES (TAXABLE SUPPLIES TO REGISTERED TAXPAYERS)</h4>
+                  <div class="table-responsive">
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>INVOICE NO</th>
+                          <th>DATE</th>
+                          <th>CUSTOMER</th>
+                          <th>CUSTOMER GSTIN</th>
+                          <th>TAXABLE VALUE (₹)</th>
+                          <th>CGST (₹)</th>
+                          <th>SGST (₹)</th>
+                          <th>IGST (₹)</th>
+                          <th>TOTAL (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody id="rep-gstr1-b2b-list">
+                        <!-- Loaded dynamically -->
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <h4 style="margin-top: 24px; margin-bottom: 8px; font-size: 13px;">SECTION 7: B2CS INVOICES (SUPPLIES TO UNREGISTERED CONSUMERS)</h4>
+                  <div class="table-responsive">
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>INVOICE NO</th>
+                          <th>DATE</th>
+                          <th>CUSTOMER</th>
+                          <th>TAXABLE VALUE (₹)</th>
+                          <th>CGST (₹)</th>
+                          <th>SGST (₹)</th>
+                          <th>IGST (₹)</th>
+                          <th>TOTAL (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody id="rep-gstr1-b2c-list">
+                        <!-- Loaded dynamically -->
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <h4 style="margin-top: 24px; margin-bottom: 8px; font-size: 13px;">SECTION 12: HSN-WISE SUMMARY OF OUTWARD SUPPLIES</h4>
+                  <div class="table-responsive">
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>HSN/SAC</th>
+                          <th>TOTAL QTY</th>
+                          <th>TAXABLE VALUE (₹)</th>
+                          <th>CGST (₹)</th>
+                          <th>SGST (₹)</th>
+                          <th>IGST (₹)</th>
+                          <th>TOTAL VALUE (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody id="rep-gstr1-hsn-list">
+                        <!-- Loaded dynamically -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Subtab: GSTR-3B -->
+              <div class="report-subtab-content" id="rep-gstr3b" style="display: none;">
+                
+                <!-- GST ITC OFFSET & PAYABLE BALANCE HIGHLIGHT WIDGET -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; background-color: var(--color-limestone); padding: 24px; border: 1.5px solid var(--color-obsidian); border-radius: 8px;">
+                  <div style="text-align: center; border-right: 1.5px dotted #000; padding-right: 16px;">
+                    <span style="font-size: 11px; font-weight: bold; color: #555; display: block; margin-bottom: 6px; text-transform: uppercase;">1. Output GST Collected</span>
+                    <strong style="font-size: 20px; color: var(--color-obsidian);" id="itc-offset-output">₹0.00</strong>
+                    <p style="font-size: 9px; color: #777; margin-top: 4px;">GST you charged to your customers on sales</p>
+                  </div>
+                  
+                  <div style="text-align: center; border-right: 1.5px dotted #000; padding-right: 16px;">
+                    <span style="font-size: 11px; font-weight: bold; color: #555; display: block; margin-bottom: 6px; text-transform: uppercase;">2. Minus Input Tax Credit (ITC)</span>
+                    <strong style="font-size: 20px; color: green;" id="itc-offset-input">- ₹0.00</strong>
+                    <p style="font-size: 9px; color: #777; margin-top: 4px;">GST you paid to suppliers on purchases (subtracted)</p>
+                  </div>
+
+                  <div style="text-align: center;" id="itc-offset-net-wrap">
+                    <span style="font-size: 11px; font-weight: bold; color: #555; display: block; margin-bottom: 6px; text-transform: uppercase;">3. Net GST to Pay / Credit</span>
+                    <strong style="font-size: 20px;" id="itc-offset-net">₹0.00</strong>
+                    <p style="font-size: 9px; color: #777; margin-top: 4px;" id="itc-offset-desc">Calculated balance after offsetting supplier tax</p>
+                  </div>
+                </div>
+                
+                <!-- Table 3.1: Output Supplies Liability -->
+                <div class="content-card" style="margin-bottom: 24px;">
+                  <h3 style="margin-bottom: 12px;">Table 3.1: Details of Outward Taxable Supplies & Inward Reverse Charge Supplies</h3>
+                  <div class="table-responsive">
+                    <table class="data-table" style="font-size: 11px;">
+                      <thead>
+                        <tr>
+                          <th>NATURE OF SUPPLIES</th>
+                          <th>TOTAL TAXABLE VALUE (₹)</th>
+                          <th>INTEGRATED TAX (IGST) (₹)</th>
+                          <th>CENTRAL TAX (CGST) (₹)</th>
+                          <th>STATE TAX (SGST) (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><strong>(a) Outward Taxable Supplies (other than zero-rated, nil-rated, exempted)</strong></td>
+                          <td id="rep-3b-31a-txval">₹0.00</td>
+                          <td id="rep-3b-31a-igst">₹0.00</td>
+                          <td id="rep-3b-31a-cgst">₹0.00</td>
+                          <td id="rep-3b-31a-sgst">₹0.00</td>
+                        </tr>
+                        <tr>
+                          <td><strong>(b) Outward Taxable Supplies (zero-rated)</strong></td>
+                          <td id="rep-3b-31b-txval">₹0.00</td>
+                          <td id="rep-3b-31b-igst">₹0.00</td>
+                          <td>—</td>
+                          <td>—</td>
+                        </tr>
+                        <tr>
+                          <td><strong>(c) Other Outward Supplies (Nil-rated, exempted)</strong></td>
+                          <td id="rep-3b-31c-txval">₹0.00</td>
+                          <td>—</td>
+                          <td>—</td>
+                          <td>—</td>
+                        </tr>
+                        <tr>
+                          <td><strong>(d) Inward supplies liable to reverse charge (RCM)</strong></td>
+                          <td id="rep-3b-31d-txval">₹0.00</td>
+                          <td id="rep-3b-31d-igst">₹0.00</td>
+                          <td id="rep-3b-31d-cgst">₹0.00</td>
+                          <td id="rep-3b-31d-sgst">₹0.00</td>
+                        </tr>
+                        <tr>
+                          <td><strong>(e) Non-GST Outward Supplies</strong></td>
+                          <td id="rep-3b-31e-txval">₹0.00</td>
+                          <td>—</td>
+                          <td>—</td>
+                          <td>—</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Table 4: Input Tax Credit (ITC) Claims -->
+                <div class="content-card" style="margin-bottom: 24px;">
+                  <h3 style="margin-bottom: 12px;">Table 4: Eligible Input Tax Credit (ITC Claims, Reversals & Blocked Credits)</h3>
+                  <div class="table-responsive">
+                    <table class="data-table" style="font-size: 11px;">
+                      <thead>
+                        <tr>
+                          <th>ITC DETAILS & NATURE</th>
+                          <th>INTEGRATED TAX (IGST) (₹)</th>
+                          <th>CENTRAL TAX (CGST) (₹)</th>
+                          <th>STATE TAX (SGST) (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><strong>(A)(1) Import of Goods</strong></td>
+                          <td id="rep-3b-4a1-igst">₹0.00</td>
+                          <td>—</td>
+                          <td>—</td>
+                        </tr>
+                        <tr>
+                          <td><strong>(A)(2) Import of Services</strong></td>
+                          <td id="rep-3b-4a2-igst">₹0.00</td>
+                          <td>—</td>
+                          <td>—</td>
+                        </tr>
+                        <tr>
+                          <td><strong>(A)(3) Inward supplies liable to reverse charge (RCM)</strong></td>
+                          <td id="rep-3b-4a3-igst">₹0.00</td>
+                          <td id="rep-3b-4a3-cgst">₹0.00</td>
+                          <td id="rep-3b-4a3-sgst">₹0.00</td>
+                        </tr>
+                        <tr>
+                          <td><strong>(A)(4) Inward supplies from ISD</strong></td>
+                          <td id="rep-3b-4a4-igst">₹0.00</td>
+                          <td id="rep-3b-4a4-cgst">₹0.00</td>
+                          <td id="rep-3b-4a4-sgst">₹0.00</td>
+                        </tr>
+                        <tr>
+                          <td><strong>(A)(5) All Other ITC (Regular Purchases & Expenses)</strong></td>
+                          <td id="rep-3b-4a5-igst">₹0.00</td>
+                          <td id="rep-3b-4a5-cgst">₹0.00</td>
+                          <td id="rep-3b-4a5-sgst">₹0.00</td>
+                        </tr>
+                        <tr style="background-color: #fce8e6;">
+                          <td><strong>(B) ITC Reversed (Rules 38, 42, 43 & Others)</strong></td>
+                          <td id="rep-3b-4b-igst" style="color: red;">₹0.00</td>
+                          <td id="rep-3b-4b-cgst" style="color: red;">₹0.00</td>
+                          <td id="rep-3b-4b-sgst" style="color: red;">₹0.00</td>
+                        </tr>
+                        <tr style="background-color: #e6f4ea; font-weight: bold;">
+                          <td><strong>(C) Net ITC Available (A - B)</strong></td>
+                          <td id="rep-3b-4c-igst" style="color: green;">₹0.00</td>
+                          <td id="rep-3b-4c-cgst" style="color: green;">₹0.00</td>
+                          <td id="rep-3b-4c-sgst" style="color: green;">₹0.00</td>
+                        </tr>
+                        <tr style="background-color: #f1f3f4;">
+                          <td><strong>(D)(1) Ineligible ITC under section 17(5) (Blocked Credit: e.g. Fuel)</strong></td>
+                          <td id="rep-3b-4d1-igst">—</td>
+                          <td id="rep-3b-4d1-cgst">₹0.00</td>
+                          <td id="rep-3b-4d1-sgst">₹0.00</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Table 5 & System Derived Liability -->
+                <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px;">
+                  
+                  <div class="content-card">
+                    <h3 style="margin-bottom: 12px;">Summary: Net GST Tax Payable</h3>
+                    <div class="table-responsive">
+                      <table class="data-table" style="font-size: 11px;">
+                        <thead>
+                          <tr>
+                            <th>GST COMPONENT</th>
+                            <th>OUTPUT LIABILITY (₹)</th>
+                            <th>INPUT ITC CREDIT (₹)</th>
+                            <th>NET PAYABLE / CREDIT (₹)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr id="row-net-cgst">
+                            <td><strong>Central Tax (CGST)</strong></td>
+                            <td id="rep-net-out-cgst">₹0.00</td>
+                            <td id="rep-net-itc-cgst">₹0.00</td>
+                            <td id="rep-net-pay-cgst" style="font-weight: bold;">₹0.00</td>
+                          </tr>
+                          <tr id="row-net-sgst">
+                            <td><strong>State Tax (SGST)</strong></td>
+                            <td id="rep-net-out-sgst">₹0.00</td>
+                            <td id="rep-net-itc-sgst">₹0.00</td>
+                            <td id="rep-net-pay-sgst" style="font-weight: bold;">₹0.00</td>
+                          </tr>
+                          <tr id="row-net-igst">
+                            <td><strong>Integrated Tax (IGST)</strong></td>
+                            <td id="rep-net-out-igst">₹0.00</td>
+                            <td id="rep-net-itc-igst">₹0.00</td>
+                            <td id="rep-net-pay-igst" style="font-weight: bold;">₹0.00</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div class="content-card">
+                    <h3 style="margin-bottom: 12px; text-transform: uppercase; font-size: 12px;">Interest & Late Fees</h3>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-12); font-size: 11px;">
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding-bottom: 6px;">
+                        <span>System Filing Due Date:</span>
+                        <strong id="rep-due-date">—</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding-bottom: 6px;">
+                        <span>Days Late:</span>
+                        <strong id="rep-days-late">0 days</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding-bottom: 6px;">
+                        <span>Late Fee (CGST + SGST):</span>
+                        <strong id="rep-late-fee">₹0.00</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding-bottom: 6px;">
+                        <span>Interest (18% p.a. on payable):</span>
+                        <strong id="rep-interest">₹0.00</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; border-top: 1.5px solid var(--color-obsidian); padding-top: 8px; font-size: 12px;">
+                        <span><strong>TOTAL PAYABLE / LIABILITY:</strong></span>
+                        <strong id="rep-total-liability" style="color: var(--color-ember); font-size: 13px;">₹0.00</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+              <!-- Subtab: Transaction Ledger -->
+              <div class="report-subtab-content" id="rep-ledger" style="display: none;">
+                <div class="content-card">
+                  <h3 style="margin-bottom: 12px;">PAYMENTS HISTORY LEDGER AUDIT</h3>
+                  <div class="table-responsive">
+                    <table class="data-table" id="ledger-table">
+                      <thead>
+                        <tr>
+                          <th>TXN ID</th>
+                          <th>DATE</th>
+                          <th>DIRECTION</th>
+                          <th>PARTY</th>
+                          <th>RELATED INVOICE</th>
+                          <th>PAYMENT METHOD</th>
+                          <th>REFERENCE</th>
+                          <th>AMOUNT (₹)</th>
+                          <th>MEMO DETAILS</th>
+                        </tr>
+                      </thead>
+                      <tbody id="rep-ledger-list">
+                        <!-- Loaded dynamically -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Subtab: Tax Registers Suite -->
+              <div class="report-subtab-content" id="rep-registers" style="display: none;">
+                
+                <!-- 1. Sales Register -->
+                <div class="content-card" style="margin-bottom: 24px;">
+                  <h3 style="margin-bottom: 12px; text-transform: uppercase;">1. Sales Register</h3>
+                  <div class="table-responsive">
+                    <table class="data-table" style="font-size: 11px;">
+                      <thead>
+                        <tr>
+                          <th>INV NO</th>
+                          <th>DATE</th>
+                          <th>CUSTOMER</th>
+                          <th>CUSTOMER GSTIN</th>
+                          <th>TAXABLE VALUE (₹)</th>
+                          <th>CGST (₹)</th>
+                          <th>SGST (₹)</th>
+                          <th>IGST (₹)</th>
+                          <th>GRAND TOTAL (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody id="reg-sales-list">
+                        <tr><td colspan="9" style="text-align: center; color: #777;">LOADING...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- 2. Purchase Register -->
+                <div class="content-card" style="margin-bottom: 24px;">
+                  <h3 style="margin-bottom: 12px; text-transform: uppercase;">2. Purchase Register</h3>
+                  <div class="table-responsive">
+                    <table class="data-table" style="font-size: 11px;">
+                      <thead>
+                        <tr>
+                          <th>PUR NO</th>
+                          <th>DATE</th>
+                          <th>SUPPLIER</th>
+                          <th>SUPPLIER GSTIN</th>
+                          <th>TAXABLE VALUE (₹)</th>
+                          <th>GST PAID (₹)</th>
+                          <th>GRAND TOTAL (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody id="reg-purchases-list">
+                        <tr><td colspan="7" style="text-align: center; color: #777;">LOADING...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- 3. State-wise Sales -->
+                <div class="content-card" style="margin-bottom: 24px;">
+                  <h3 style="margin-bottom: 12px; text-transform: uppercase;">3. State-wise Geographical Sales Distribution</h3>
+                  <div class="table-responsive">
+                    <table class="data-table" style="font-size: 11px;">
+                      <thead>
+                        <tr>
+                          <th>STATE NAME</th>
+                          <th>STATE CODE</th>
+                          <th>INVOICES COUNT</th>
+                          <th>TAXABLE VALUE (₹)</th>
+                          <th>CGST (₹)</th>
+                          <th>SGST (₹)</th>
+                          <th>IGST (₹)</th>
+                          <th>TOTAL VALUE (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody id="reg-state-sales-list">
+                        <tr><td colspan="8" style="text-align: center; color: #777;">LOADING...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- 4. GST Rate Summary (Sales & Purchases Side-by-Side) -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                  
+                  <div class="content-card">
+                    <h3 style="margin-bottom: 12px; text-transform: uppercase; font-size: 12px;">4A. GST Rate Summary (Sales)</h3>
+                    <div class="table-responsive">
+                      <table class="data-table" style="font-size: 11px;">
+                        <thead>
+                          <tr>
+                            <th>GST RATE</th>
+                            <th>TAXABLE VALUE (₹)</th>
+                            <th>CGST/SGST (₹)</th>
+                            <th>IGST (₹)</th>
+                          </tr>
+                        </thead>
+                        <tbody id="reg-rate-sales-list">
+                          <tr><td colspan="4" style="text-align: center; color: #777;">LOADING...</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div class="content-card">
+                    <h3 style="margin-bottom: 12px; text-transform: uppercase; font-size: 12px;">4B. GST Rate Summary (Purchases)</h3>
+                    <div class="table-responsive">
+                      <table class="data-table" style="font-size: 11px;">
+                        <thead>
+                          <tr>
+                            <th>GST RATE</th>
+                            <th>TAXABLE VALUE (₹)</th>
+                            <th>CGST/SGST (₹)</th>
+                            <th>IGST (₹)</th>
+                          </tr>
+                        </thead>
+                        <tbody id="reg-rate-purchases-list">
+                          <tr><td colspan="4" style="text-align: center; color: #777;">LOADING...</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- 5. Monthly Summary (For Current Year) -->
+                <div class="content-card" style="margin-bottom: 24px;">
+                  <h3 style="margin-bottom: 12px; text-transform: uppercase;">5. Monthly Summary (Filing Year Calendar)</h3>
+                  <div class="table-responsive">
+                    <table class="data-table" style="font-size: 11px;">
+                      <thead>
+                        <tr>
+                          <th>FILING MONTH</th>
+                          <th>SALES VALUE (₹)</th>
+                          <th>SALES GST (₹)</th>
+                          <th>PURCHASES VALUE (₹)</th>
+                          <th>PURCHASES GST (₹)</th>
+                          <th>EXPENSES VALUE (₹)</th>
+                          <th>EXPENSES GST (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody id="reg-monthly-list">
+                        <tr><td colspan="7" style="text-align: center; color: #777;">LOADING...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- 6. Quarterly & Annual Summaries (Side-by-Side) -->
+                <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px;">
+                  
+                  <div class="content-card">
+                    <h3 style="margin-bottom: 12px; text-transform: uppercase; font-size: 12px;">6. Quarterly Summary</h3>
+                    <div class="table-responsive">
+                      <table class="data-table" style="font-size: 11px;">
+                        <thead>
+                          <tr>
+                            <th>QUARTER</th>
+                            <th>SALES TAXABLE (₹)</th>
+                            <th>PURCHASE TAXABLE (₹)</th>
+                            <th>EXPENSE TAXABLE (₹)</th>
+                          </tr>
+                        </thead>
+                        <tbody id="reg-quarterly-list">
+                          <tr><td colspan="4" style="text-align: center; color: #777;">LOADING...</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div class="content-card">
+                    <h3 style="margin-bottom: 12px; text-transform: uppercase; font-size: 12px;">7. Annual Summary</h3>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-12); font-size: 11px;">
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding-bottom: 6px;">
+                        <span>Total Sales Taxable:</span>
+                        <strong id="reg-annual-sales-tx">₹0.00</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding-bottom: 6px;">
+                        <span>Total Sales GST:</span>
+                        <strong id="reg-annual-sales-gst">₹0.00</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding-bottom: 6px;">
+                        <span>Total Purchases Taxable:</span>
+                        <strong id="reg-annual-purchases-tx">₹0.00</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding-bottom: 6px;">
+                        <span>Total Purchases GST:</span>
+                        <strong id="reg-annual-purchases-gst">₹0.00</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding-bottom: 6px;">
+                        <span>Total Expenses Taxable:</span>
+                        <strong id="reg-annual-expenses-tx">₹0.00</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding-bottom: 6px;">
+                        <span>Total Expenses GST:</span>
+                        <strong id="reg-annual-expenses-gst">₹0.00</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- Right Sidebar: Database Backup & Utilities -->
+            <div>
+              <div class="content-card" style="margin-bottom: 24px;">
+                <h3 style="margin-bottom: 12px; font-size: 14px; text-transform: uppercase;">BACKUP UTILITIES</h3>
+                <p style="font-size: 12px; margin-bottom: 16px;">Download a complete ZIP package of your SQLite database and attachments receipts files, or restore an earlier package upload.</p>
+                
+                <a href="/api/backup" class="btn btn-primary-pill" style="display: block; text-align: center; margin-bottom: 16px; text-decoration: none;">⬇️ DOWNLOAD ZIP BACKUP</a>
+                
+                <div style="border-top: 1.5px dotted #000; padding-top: 16px; margin-top: 16px;">
+                  <h4 style="font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">RESTORE FROM BACKUP</h4>
+                  <form id="restore-backup-form">
+                    <input type="file" id="restore-zip-input" accept=".zip" required style="font-size: 11px; margin-bottom: 12px; display: block; width: 100%;">
+                    <button type="submit" class="btn btn-secondary-pill" style="width: 100%; font-size: 11px; font-weight: bold;">⬆️ UPLOAD &amp; RESTORE</button>
+                  </form>
+                </div>
+              </div>
+
+              <div class="content-card">
+                <h3 style="margin-bottom: 12px; font-size: 14px; text-transform: uppercase;">GSTIN DETAILS</h3>
+                <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px;">
+                  <div><strong>FILING TYPE:</strong> Monthly Returns</div>
+                  <div><strong>YOUR STATE:</strong> Karnataka (State Code: 29)</div>
+                  <div><strong>DEFAULT SUPPLY:</strong> Intra-State (CGST + SGST)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Settings -->
+      <div class="tab-content" id="tab-settings">
+        <div class="section-container-width">
+          <div class="screen-header">
+            <div>
+              <h1 class="screen-title">SETTINGS</h1>
+              <p class="screen-subtitle">Configure business profile details and defaults</p>
+            </div>
+            <button class="btn btn-primary-pill" id="btn-save-settings">SAVE SETTINGS</button>
+          </div>
+          
+          <div class="content-card settings-card">
+            <h3 class="card-title">BUSINESS PROFILE</h3>
+            <div class="form-grid" style="margin-bottom: 24px;">
+              <div class="form-group">
+                <label for="set-biz-name">Business Name *</label>
+                <input type="text" id="set-biz-name" placeholder="Enter Company Name">
+              </div>
+              <div class="form-group">
+                <label for="set-biz-gst">GSTIN *</label>
+                <input type="text" id="set-biz-gst" placeholder="e.g. 29AAAAA0000A1Z1">
+              </div>
+              <div class="form-group">
+                <label for="set-biz-state">Registered State</label>
+                <input type="text" id="set-biz-state" placeholder="e.g. Karnataka">
+              </div>
+              <div class="form-group">
+                <label for="set-biz-state-code">State Code</label>
+                <input type="text" id="set-biz-state-code" placeholder="e.g. 29">
+              </div>
+
+              <div class="form-group">
+                <label for="set-biz-address">Address</label>
+                <input type="text" id="set-biz-address" placeholder="Enter registered business address">
+              </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1.5px dotted #ccc; margin-bottom: 20px;">
+
+            <h3 class="card-title">BUSINESS LOGO</h3>
+            <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+              <div style="width: 120px; height: 120px; border: 2px dashed #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; overflow: hidden; position: relative;">
+                <img id="set-logo-preview" style="max-width: 100%; max-height: 100%; object-fit: contain; display: none;" />
+                <span id="set-logo-placeholder" style="font-size: 11px; color: #777; text-align: center; padding: 8px;">No Logo Uploaded</span>
+              </div>
+              <div>
+                <input type="file" id="set-logo-file" accept="image/*" style="display: none;">
+                <button type="button" class="btn btn-secondary-pill" onclick="document.getElementById('set-logo-file').click()">SELECT LOGO IMAGE</button>
+                <button type="button" class="btn btn-secondary-pill" id="btn-remove-logo" style="margin-left: 8px; display: none; background: #c5221f; color: white; border: none;">REMOVE</button>
+                <p style="font-size: 10px; color: #777; margin-top: 8px;">Upload PNG or JPG image (recommended: square format with light background).</p>
+                <input type="hidden" id="set-biz-logo-path" value="">
+              </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1.5px dotted #ccc; margin-top: 24px; margin-bottom: 20px;">
+
+            <h3 class="card-title">API ACCESS & INTEGRATIONS</h3>
+            <p style="font-size: 12px; color: rgba(7, 6, 7, 0.7); margin-bottom: 16px;">
+              Enable external API access to integrate with other tools. This allows you to programmatically add products, record purchases, and create invoices.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 16px; max-width: 600px;">
+              <div class="api-toggle-container">
+                <label class="switch">
+                  <input type="checkbox" id="set-api-enabled">
+                  <span class="slider"></span>
+                </label>
+                <span style="font-size: 13px; font-weight: 500; text-transform: uppercase; margin-left: 8px;">Enable External API Access</span>
+              </div>
+              
+              <div class="form-group" id="api-key-section" style="display: none;">
+                <label for="set-api-key">API secret key</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="text" id="set-api-key" readonly style="flex-grow: 1; font-family: monospace; font-size: 13px; letter-spacing: 0.05em;" placeholder="Not generated yet">
+                  <button type="button" class="btn btn-secondary-pill" id="btn-copy-api-key" style="white-space: nowrap; flex-shrink: 0;">COPY KEY</button>
+                  <button type="button" class="btn btn-secondary-pill" id="btn-regen-api-key" style="white-space: nowrap; flex-shrink: 0;">REGENERATE</button>
+                </div>
+                <p style="font-size: 10px; color: #777; margin-top: 4px;">
+                  Use this key in the <code>Authorization: Bearer &lt;YOUR_API_KEY&gt;</code> header or <code>x-api-key: &lt;YOUR_API_KEY&gt;</code> header for authenticating external HTTP requests.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Caldera Footer -->
+  <footer class="caldera-footer">
+    <div class="footer-container">
+      <div class="footer-legal">
+        <p>PERSONAL BILLING & GST ASSISTANT — BUILT FOR OFFLINE LOCAL USE IN KARNATAKA.</p>
+        <p class="fine-print">COPYRIGHT © 2026 MYZOHO GST. DATABASE CONNECTION USES BUN SQLITE DRIVER LOCALLY.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Customer Form Modal Overlay -->
+  <div class="modal-overlay" id="customer-modal">
+    <div class="modal-card">
+      <h3 class="modal-title" id="customer-modal-title">ADD CUSTOMER</h3>
+      <form id="customer-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="cust-id">Customer ID *</label>
+            <input type="text" id="cust-id" placeholder="CUST-XXXX (REQUIRED)" required>
+          </div>
+          <div class="form-group">
+            <label for="cust-name">Customer Name *</label>
+            <input type="text" id="cust-name" placeholder="FULL NAME (REQUIRED)" required>
+          </div>
+          <div class="form-group">
+            <label for="cust-gstin">GSTIN (Optional)</label>
+            <input type="text" id="cust-gstin" placeholder="15-CHAR GSTIN">
+          </div>
+          <div class="form-group">
+            <label for="cust-pan">PAN (Optional)</label>
+            <input type="text" id="cust-pan" placeholder="10-CHAR PAN">
+          </div>
+          <div class="form-group">
+            <label for="cust-phone">Phone (Optional)</label>
+            <input type="text" id="cust-phone" placeholder="PHONE NUMBER">
+          </div>
+          <div class="form-group">
+            <label for="cust-email">Email (Optional)</label>
+            <input type="email" id="cust-email" placeholder="EMAIL ADDRESS">
+          </div>
+          <div class="form-group">
+            <label for="cust-state">Billing State</label>
+            <select id="cust-state" class="form-select">
+              <option value="Karnataka" data-code="29" selected>Karnataka (29)</option>
+              <option value="Andhra Pradesh" data-code="37">Andhra Pradesh (37)</option>
+              <option value="Delhi" data-code="07">Delhi (07)</option>
+              <option value="Goa" data-code="30">Goa (30)</option>
+              <option value="Gujarat" data-code="24">Gujarat (24)</option>
+              <option value="Haryana" data-code="06">Haryana (06)</option>
+              <option value="Kerala" data-code="32">Kerala (32)</option>
+              <option value="Maharashtra" data-code="27">Maharashtra (27)</option>
+              <option value="Tamil Nadu" data-code="33">Tamil Nadu (33)</option>
+              <option value="Telangana" data-code="36">Telangana (36)</option>
+              <option value="Uttar Pradesh" data-code="09">Uttar Pradesh (09)</option>
+              <option value="West Bengal" data-code="19">West Bengal (19)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cust-state-code">State Code</label>
+            <input type="text" id="cust-state-code" value="29" readonly>
+          </div>
+          <div class="form-group full-width">
+            <label for="cust-billing-address">Billing Address</label>
+            <input type="text" id="cust-billing-address" placeholder="BILLING STREET ADDRESS">
+          </div>
+          <div class="form-group full-width">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label for="cust-shipping-address" style="margin: 0;">Shipping Address</label>
+              <label style="font-size: 11px; font-weight: 500; display: flex; align-items: center; gap: 4px; text-transform: uppercase; cursor: pointer; color: rgba(7, 6, 7, 0.6); margin: 0;">
+                <input type="checkbox" id="cust-same-address" style="width: auto; margin: 0; cursor: pointer;"> Same as Billing
+              </label>
+            </div>
+            <input type="text" id="cust-shipping-address" placeholder="SHIPPING STREET ADDRESS">
+          </div>
+          <div class="form-group">
+            <label for="cust-contact">Contact Person</label>
+            <input type="text" id="cust-contact" placeholder="CONTACT NAME">
+          </div>
+          <div class="form-group">
+            <label for="cust-notes">Notes</label>
+            <input type="text" id="cust-notes" placeholder="ADDITIONAL NOTES">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary-pill">SAVE CUSTOMER</button>
+          <button type="button" class="btn btn-secondary-pill" id="btn-cancel-customer">CANCEL</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Product Form Modal Overlay -->
+  <div class="modal-overlay" id="product-modal">
+    <div class="modal-card">
+      <h3 class="modal-title" id="product-modal-title">ADD PRODUCT</h3>
+      <form id="product-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="prod-id">Product SKU / ID *</label>
+            <input type="text" id="prod-id" placeholder="SKU CODE (REQUIRED)" required>
+          </div>
+          <div class="form-group">
+            <label for="prod-name">Product Name *</label>
+            <input type="text" id="prod-name" placeholder="PRODUCT NAME (REQUIRED)" required>
+          </div>
+          <div class="form-group">
+            <label for="prod-hsn">HSN / SAC Code</label>
+            <input type="text" id="prod-hsn" placeholder="HSN/SAC CODE">
+          </div>
+          <div class="form-group">
+            <label for="prod-gst-rate">GST Rate *</label>
+            <select id="prod-gst-rate" class="form-select" required>
+              <!-- Loaded dynamically -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="prod-unit">Unit</label>
+            <input type="text" id="prod-unit" value="PCS" placeholder="e.g. PCS, BOX, KGS">
+          </div>
+          <div class="form-group">
+            <label for="prod-purchase-price">Purchase Price (₹)</label>
+            <input type="number" id="prod-purchase-price" step="0.01" value="0.00">
+          </div>
+          <div class="form-group">
+            <label for="prod-selling-price">Selling Price (₹)</label>
+            <input type="number" id="prod-selling-price" step="0.01" value="0.00">
+          </div>
+          <div class="form-group">
+            <label for="prod-stock">Current Stock</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="number" id="prod-stock" step="0.1" value="0.0" style="flex: 1;">
+              <button type="button" class="btn btn-secondary-pill" id="btn-adjust-stock" style="display: none; padding: 4px 10px; font-size: 11px; height: 36px; line-height: 1;">Adjust</button>
+            </div>
+            <span style="font-size: 9px; color: #777; display: block; margin-top: 4px;" id="prod-stock-help"></span>
+          </div>
+          <div class="form-group">
+            <label for="prod-reorder">Reorder Level</label>
+            <input type="number" id="prod-reorder" step="0.1" value="0.0">
+          </div>
+          <div class="form-group full-width">
+            <label for="prod-desc">Description</label>
+            <input type="text" id="prod-desc" placeholder="PRODUCT SPECIFICATION DETAIL">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary-pill">SAVE PRODUCT</button>
+          <button type="button" class="btn btn-secondary-pill" id="btn-cancel-product">CANCEL</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Invoice Creator / Editor Modal Overlay -->
+  <div class="modal-overlay" id="invoice-editor-modal">
+    <div class="modal-card" style="max-width: 1100px; width: 95%;">
+      <h3 class="modal-title" id="invoice-editor-title">NEW SALES INVOICE</h3>
+      <form id="invoice-form">
+        <!-- Invoice Header Information -->
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="inv-id-display">Invoice Number</label>
+            <input type="text" id="inv-id-display" value="INV-XXXXXX (AUTO)" readonly>
+          </div>
+          <div class="form-group">
+            <label for="inv-customer">Select Customer *</label>
+            <select id="inv-customer" class="form-select" required>
+              <option value="" disabled selected>CHOOSE CUSTOMER...</option>
+              <!-- Loaded dynamically -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="inv-date">Invoice Date *</label>
+            <input type="date" id="inv-date" required>
+          </div>
+          <div class="form-group">
+            <label for="inv-supply-state">Place of Supply *</label>
+            <select id="inv-supply-state" class="form-select" required>
+              <option value="Karnataka" data-code="29" selected>Karnataka (29)</option>
+              <option value="Andhra Pradesh" data-code="37">Andhra Pradesh (37)</option>
+              <option value="Delhi" data-code="07">Delhi (07)</option>
+              <option value="Goa" data-code="30">Goa (30)</option>
+              <option value="Gujarat" data-code="24">Gujarat (24)</option>
+              <option value="Haryana" data-code="06">Haryana (06)</option>
+              <option value="Kerala" data-code="32">Kerala (32)</option>
+              <option value="Maharashtra" data-code="27">Maharashtra (27)</option>
+              <option value="Tamil Nadu" data-code="33">Tamil Nadu (33)</option>
+              <option value="Telangana" data-code="36">Telangana (36)</option>
+              <option value="Uttar Pradesh" data-code="09">Uttar Pradesh (09)</option>
+              <option value="West Bengal" data-code="19">West Bengal (19)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Spreadsheet Grid for Line Items -->
+        <h4 style="margin: 24px 0 12px; font-size: 16px; text-transform: uppercase;">LINE ITEMS</h4>
+        <div class="table-responsive">
+          <table class="data-table" id="invoice-items-grid" style="margin-top: 0;">
+            <thead>
+              <tr>
+                <th style="width: 30%;">PRODUCT / SKU *</th>
+                <th>HSN/SAC</th>
+                <th style="width: 12%;">QTY *</th>
+                <th>UNIT</th>
+                <th style="width: 15%;">UNIT PRICE (₹) *</th>
+                <th>GST RATE</th>
+                <th style="width: 15%;">TAXABLE VALUE</th>
+                <th>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody id="invoice-editor-items-list">
+              <!-- Loaded dynamically via JS -->
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top: 16px;">
+          <button type="button" class="btn btn-secondary-pill" id="btn-add-invoice-line" style="border-radius: var(--radius-small); padding: 8px 16px; font-size: 13px;">+ ADD ITEM ROW</button>
+        </div>
+
+        <!-- Summary & Totals block -->
+        <div class="invoice-summary-block" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 40px; margin-top: 32px; border-top: 1.5px dotted var(--color-obsidian); padding-top: 24px;">
+          <div class="form-group">
+            <label for="inv-notes">Notes / Terms</label>
+            <input type="text" id="inv-notes" placeholder="e.g. Thanks for your business!">
+          </div>
+          <div class="totals-pane" style="background-color: var(--color-pumice); padding: 24px; border-radius: var(--radius-cards); border: 1.5px solid var(--color-obsidian); display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; font-size: 14px;">
+              <span>TAXABLE VALUE:</span>
+              <span id="inv-summary-taxable" style="font-weight: bold;">₹0.00</span>
+            </div>
+            <div id="cgst-row" style="display: flex; justify-content: space-between; font-size: 14px; color: var(--color-obsidian);">
+              <span>CGST:</span>
+              <span id="inv-summary-cgst">₹0.00</span>
+            </div>
+            <div id="sgst-row" style="display: flex; justify-content: space-between; font-size: 14px; color: var(--color-obsidian);">
+              <span>SGST:</span>
+              <span id="inv-summary-sgst">₹0.00</span>
+            </div>
+            <div id="igst-row" style="display: flex; justify-content: space-between; font-size: 14px; color: var(--color-obsidian);">
+              <span>IGST:</span>
+              <span id="inv-summary-igst">₹0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px; color: rgba(7, 6, 7, 0.6);">
+              <span>ROUND OFF:</span>
+              <span id="inv-summary-round-off">₹0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; border-top: 1.5px dotted var(--color-obsidian); padding-top: 8px; margin-top: 4px;">
+              <span>GRAND TOTAL:</span>
+              <span id="inv-summary-grand-total">₹0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary-pill">SAVE & CONFIRM INVOICE</button>
+          <button type="button" class="btn btn-secondary-pill" id="btn-cancel-invoice">CANCEL</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Invoice Print / View Modal Overlay -->
+  <div class="modal-overlay" id="invoice-print-modal">
+    <div class="modal-card" style="max-width: 900px; width: 95%; background-color: #ffffff; padding: 48px; border-radius: 0; color: #000000; font-family: 'DM Sans', sans-serif;">
+      <!-- Action Toolbar (hidden during physical print) -->
+      <div class="print-actions-toolbar" style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 24px; border-bottom: 1.5px dotted #000000; padding-bottom: 16px;">
+        <button class="btn btn-primary-pill" id="btn-trigger-print" style="padding: 8px 20px; font-size: 14px;">🖨️ PRINT INVOICE</button>
+        <button class="btn btn-secondary-pill" id="btn-close-print" style="border-radius: var(--radius-buttons); padding: 8px 20px; font-size: 14px;">CLOSE</button>
+      </div>
+
+      <!-- Printable Invoice Area -->
+      <div id="print-area">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #000000; padding-bottom: 16px;">
+          <div style="display: flex; gap: 16px; align-items: center;">
+            <img id="print-biz-logo" src="" alt="Logo" style="width: 70px; height: 70px; object-fit: contain; border-radius: 4px; border: 1.5px solid #000000; display: none;">
+            <div>
+              <h2 id="print-biz-name" style="font-family: inherit; font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0;">MY BUSINESS</h2>
+              <p id="print-biz-address" style="font-size: 12px; color: #333; margin: 4px 0 0 0; line-height: 1.4;">Registered Address Line</p>
+              <p style="font-size: 12px; font-weight: bold; margin: 4px 0 0 0;">GSTIN: <span id="print-biz-gstin">29AAAAA0000A1Z5</span></p>
+              <p style="font-size: 12px; margin: 4px 0 0 0;" id="print-biz-state-label">State: Karnataka (29)</p>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <h1 style="font-family: inherit; font-size: 32px; font-weight: bold; letter-spacing: -0.5px; margin: 0; color: #000000;">TAX INVOICE</h1>
+            <p style="font-size: 14px; font-weight: bold; margin-top: 12px;">Invoice No: <span id="print-inv-number">INV-000001</span></p>
+            <p style="font-size: 13px;">Date: <span id="print-inv-date">24-Jul-2026</span></p>
+            <p style="font-size: 13px;">Place of Supply: <span id="print-inv-pos">Karnataka (29)</span></p>
+          </div>
+        </div>
+
+        <!-- Addresses Box -->
+        <div style="display: grid; grid-template-columns: 1fr; gap: 24px; margin: 24px 0; font-size: 13px;">
+          <div style="border: 1px solid #000000; padding: 16px;">
+            <h4 style="text-transform: uppercase; margin-bottom: 6px; font-weight: bold; border-bottom: 1px solid #000000; padding-bottom: 4px;">Billed To (Recipient)</h4>
+            <p id="print-cust-name" style="font-weight: bold; font-size: 14px;">Customer Name</p>
+            <p id="print-cust-address" style="margin-top: 4px; color: #333;">Billing Street Address Details</p>
+            <p id="print-cust-phone" style="margin-top: 4px;">Phone: —</p>
+            <p id="print-cust-gstin-container" style="font-weight: bold; margin-top: 4px;">GSTIN: <span id="print-cust-gstin">—</span></p>
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <table style="width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 11px; border: 1px solid #000000;">
+          <thead>
+            <tr style="background-color: #f2f2f2; border-bottom: 1px solid #000000;">
+              <th style="padding: 8px; border-right: 1px solid #000000; width: 4%; text-align: center;">#</th>
+              <th style="padding: 8px; border-right: 1px solid #000000; width: 22%;">PRODUCT DESCRIPTION</th>
+              <th style="padding: 8px; border-right: 1px solid #000000; width: 8%; text-align: center;">HSN/SAC</th>
+              <th style="padding: 8px; border-right: 1px solid #000000; width: 6%; text-align: center;">QTY</th>
+              <th style="padding: 8px; border-right: 1px solid #000000; width: 6%; text-align: center;">UNIT</th>
+              <th style="padding: 8px; border-right: 1px solid #000000; width: 10%; text-align: right;">RATE (₹)</th>
+              <th style="padding: 8px; border-right: 1px solid #000000; width: 10%; text-align: right;">TAXABLE VAL (₹)</th>
+              <th class="print-col-cgst" style="padding: 8px; border-right: 1px solid #000000; width: 6%; text-align: center;">CGST %</th>
+              <th class="print-col-cgst" style="padding: 8px; border-right: 1px solid #000000; width: 8%; text-align: right;">CGST (₹)</th>
+              <th class="print-col-sgst" style="padding: 8px; border-right: 1px solid #000000; width: 6%; text-align: center;">SGST %</th>
+              <th class="print-col-sgst" style="padding: 8px; border-right: 1px solid #000000; width: 8%; text-align: right;">SGST (₹)</th>
+              <th class="print-col-igst" style="padding: 8px; border-right: 1px solid #000000; width: 6%; text-align: center;">IGST %</th>
+              <th class="print-col-igst" style="padding: 8px; border-right: 1px solid #000000; width: 8%; text-align: right;">IGST (₹)</th>
+              <th style="padding: 8px; text-align: right; width: 10%;">TOTAL (₹)</th>
+            </tr>
+          </thead>
+          <tbody id="print-items-list">
+            <!-- Loaded dynamically -->
+          </tbody>
+        </table>
+
+        <!-- Summary Calculations -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 24px; font-size: 13px;">
+          <div>
+            <p style="font-style: italic; color: #555;">Notes: <span id="print-notes">Thank you for your business.</span></p>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span>Taxable Value:</span>
+              <span id="print-summary-taxable" style="font-weight: bold;">₹0.00</span>
+            </div>
+            <div id="print-row-cgst" style="display: flex; justify-content: space-between;">
+              <span>Central GST (CGST):</span>
+              <span id="print-summary-cgst">₹0.00</span>
+            </div>
+            <div id="print-row-sgst" style="display: flex; justify-content: space-between;">
+              <span>State GST (SGST):</span>
+              <span id="print-summary-sgst">₹0.00</span>
+            </div>
+            <div id="print-row-igst" style="display: flex; justify-content: space-between;">
+              <span>Integrated GST (IGST):</span>
+              <span id="print-summary-igst">₹0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #555;">
+              <span>Round Off:</span>
+              <span id="print-summary-round-off">₹0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; border-top: 1px solid #000000; padding-top: 6px; margin-top: 4px;">
+              <span>Grand Total:</span>
+              <span id="print-summary-grand-total">₹0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; color: #555;">
+              <span>Amount Paid:</span>
+              <span id="print-summary-paid">₹0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; border-top: 1px dotted #000000; padding-top: 4px; color: #fc5000;">
+              <span>Balance Due:</span>
+              <span id="print-summary-due">₹0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- HSN Summary Table -->
+        <h4 style="margin: 32px 0 8px; font-size: 12px; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid #000000; padding-bottom: 4px;">HSN Tax Summary</h4>
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; border: 1px solid #000000;">
+          <thead>
+            <tr style="background-color: #f2f2f2; border-bottom: 1px solid #000000;">
+              <th style="padding: 6px; border-right: 1px solid #000000;">HSN/SAC</th>
+              <th style="padding: 6px; border-right: 1px solid #000000; text-align: right;">TAXABLE VAL (₹)</th>
+              <th style="padding: 6px; border-right: 1px solid #000000; text-align: center;">CGST RATE</th>
+              <th style="padding: 6px; border-right: 1px solid #000000; text-align: right;">CGST AMT (₹)</th>
+              <th style="padding: 6px; border-right: 1px solid #000000; text-align: center;">SGST RATE</th>
+              <th style="padding: 6px; border-right: 1px solid #000000; text-align: right;">SGST AMT (₹)</th>
+              <th style="padding: 6px; border-right: 1px solid #000000; text-align: center;">IGST RATE</th>
+              <th style="padding: 6px; border-right: 1px solid #000000; text-align: right;">IGST AMT (₹)</th>
+              <th style="padding: 6px; text-align: right;">TOTAL TAX (₹)</th>
+            </tr>
+          </thead>
+          <tbody id="print-hsn-summary-list">
+            <!-- Loaded dynamically -->
+          </tbody>
+        </table>
+
+
+        <!-- Signatures Block -->
+        <div style="margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; text-align: center; font-size: 13px;">
+          <div>
+            <p style="border-top: 1px solid #000000; width: 200px; margin: 45px auto 0; padding-top: 6px;">Customer Signature</p>
+          </div>
+          <div>
+            <p id="print-biz-sign-label" style="font-weight: bold; margin-bottom: 5px;">For MY BUSINESS</p>
+            <div id="print-digital-sig" style="font-family: 'Alex Brush', cursive; font-size: 32px; height: 35px; line-height: 35px; color: #000000; padding-bottom: 5px;">Akshay Bhandare</div>
+            <p style="border-top: 1px solid #000000; width: 200px; margin: 5px auto 0; padding-top: 6px;">Authorized Signature</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Record Payment Modal Overlay -->
+  <div class="modal-overlay" id="payment-modal">
+    <div class="modal-card" style="max-width: 450px;">
+      <h3 class="modal-title">RECORD PAYMENT</h3>
+      <form id="payment-form">
+        <div class="form-group">
+          <label for="pay-invoice-no">Invoice Number</label>
+          <input type="text" id="pay-invoice-no" readonly>
+        </div>
+        <div class="form-group">
+          <label for="pay-balance-due-display">Balance Due (₹)</label>
+          <input type="text" id="pay-balance-due-display" readonly>
+        </div>
+        <div class="form-group">
+          <label for="pay-date">Payment Date *</label>
+          <input type="date" id="pay-date" required>
+        </div>
+        <div class="form-group">
+          <label for="pay-amount">Payment Amount (₹) *</label>
+          <input type="number" id="pay-amount" min="0.01" step="0.01" required>
+        </div>
+        <div class="form-group">
+          <label for="pay-method">Payment Method *</label>
+          <select id="pay-method" class="form-select" required>
+            <option value="UPI" selected>UPI</option>
+            <option value="Cash">Cash</option>
+            <option value="Bank Transfer">Bank Transfer</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Card">Card</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="pay-ref-no">Reference / Txn Number</label>
+          <input type="text" id="pay-ref-no" placeholder="e.g. UPI TRANSACTION ID">
+        </div>
+        <div class="form-group">
+          <label for="pay-notes">Notes</label>
+          <input type="text" id="pay-notes" placeholder="PAYMENT MEMO DETAILS">
+        </div>
+        
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary-pill">SUBMIT PAYMENT</button>
+          <button type="button" class="btn btn-secondary-pill" id="btn-cancel-payment">CANCEL</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Purchase Editor Modal Overlay -->
+  <div class="modal-overlay" id="purchase-modal">
+    <div class="modal-card" style="max-width: 900px; width: 90%;">
+      <h3 class="modal-title" id="purchase-modal-title">RECORD PURCHASE</h3>
+      <form id="purchase-form">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label for="pur-id">Purchase Number</label>
+            <input type="text" id="pur-id" readonly>
+          </div>
+          <div class="form-group">
+            <label for="pur-supplier-id">Supplier *</label>
+            <div style="display: flex; gap: 8px;">
+              <select id="pur-supplier-id" style="flex: 1; min-width: 0;" required>
+                <!-- Loaded dynamically -->
+              </select>
+              <button type="button" class="btn" id="btn-quick-supplier" style="padding: 0 12px; font-weight: bold;">+ ADD</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="pur-supplier-inv-no">Supplier Invoice No</label>
+            <input type="text" id="pur-supplier-inv-no" placeholder="e.g. VEN/9981">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 8px;">
+          <div class="form-group">
+            <label for="pur-date">Invoice Date *</label>
+            <input type="date" id="pur-date" required>
+          </div>
+          <div class="form-group">
+            <label for="pur-status">Payment Status *</label>
+            <select id="pur-status" required>
+              <option value="Unpaid">Unpaid</option>
+              <option value="Partially Paid">Partially Paid</option>
+              <option value="Paid" selected>Paid</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="pur-file">Upload Bill Receipt</label>
+            <input type="file" id="pur-file" accept="image/*,application/pdf">
+          </div>
+        </div>
+
+        <!-- Spreadsheet grid for items -->
+        <h4 style="margin-top: 20px; margin-bottom: 8px; font-size: 14px; text-transform: uppercase;">ITEMS DETAILS</h4>
+        <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+          <table class="grid-table" id="purchase-items-grid">
+            <thead>
+              <tr>
+                <th style="width: 40%;">PRODUCT *</th>
+                <th style="width: 15%; text-align: center;">QTY *</th>
+                <th style="width: 20%; text-align: right;">PURCHASE PRICE (₹) *</th>
+                <th style="width: 15%; text-align: center;">GST RATE *</th>
+                <th style="width: 10%; text-align: center;">ACTION</th>
+              </tr>
+            </thead>
+            <tbody id="purchase-items-body">
+              <!-- Grid rows dynamically added -->
+            </tbody>
+          </table>
+        </div>
+        <button type="button" class="btn btn-secondary-pill" id="btn-add-purchase-row" style="margin-top: 8px; padding: 4px 12px; font-size: 12px;">+ ADD ROW (Enter)</button>
+
+        <!-- Calculations block -->
+        <div style="display: flex; justify-content: flex-end; margin-top: 16px; border-top: 1px dotted #ccc; padding-top: 12px;">
+          <div style="width: 300px; display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span>Subtotal Taxable:</span>
+              <span id="pur-calc-taxable" style="font-weight: bold;">₹0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span>Total GST Credit:</span>
+              <span id="pur-calc-gst">₹0.00</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; border-top: 1px solid #000; padding-top: 6px;">
+              <span>Grand Total:</span>
+              <span id="pur-calc-total">₹0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 16px;">
+          <button type="submit" class="btn btn-primary-pill">SAVE PURCHASE</button>
+          <button type="button" class="btn btn-secondary-pill" id="btn-cancel-purchase">CANCEL</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Quick Supplier Add Modal Overlay -->
+  <div class="modal-overlay" id="supplier-modal">
+    <div class="modal-card" style="max-width: 450px;">
+      <h3 class="modal-title">ADD NEW SUPPLIER</h3>
+      <form id="supplier-form">
+        <div class="form-group">
+          <label for="sup-name">Supplier Name *</label>
+          <input type="text" id="sup-name" required placeholder="e.g. VENDOR LOGISTICS LTD">
+        </div>
+        <div class="form-group">
+          <label for="sup-gstin">GSTIN (Optional)</label>
+          <input type="text" id="sup-gstin" placeholder="15-character GSTIN format">
+        </div>
+        <div class="form-group">
+          <label for="sup-phone">Phone</label>
+          <input type="text" id="sup-phone" placeholder="Contact number">
+        </div>
+        <div class="form-group">
+          <label for="sup-email">Email</label>
+          <input type="email" id="sup-email" placeholder="Vendor email">
+        </div>
+        <div class="form-group">
+          <label for="sup-address">Billing Address</label>
+          <input type="text" id="sup-address" placeholder="Vendor billing address">
+        </div>
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label for="sup-state">State</label>
+            <select id="sup-state">
+              <option value="Karnataka" selected>Karnataka</option>
+              <option value="Maharashtra">Maharashtra</option>
+              <option value="Delhi">Delhi</option>
+              <option value="Tamil Nadu">Tamil Nadu</option>
+              <option value="Telangana">Telangana</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="sup-state-code">State Code</label>
+            <input type="text" id="sup-state-code" value="29" readonly>
+          </div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary-pill">ADD SUPPLIER</button>
+          <button type="button" class="btn btn-secondary-pill" id="btn-cancel-supplier">CANCEL</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Expense Editor Modal Overlay -->
+  <div class="modal-overlay" id="expense-modal">
+    <div class="modal-card" style="max-width: 450px;">
+      <h3 class="modal-title">LOG OPERATIONAL EXPENSE</h3>
+      <form id="expense-form">
+        <div class="form-group">
+          <label for="exp-category">Expense Category *</label>
+          <select id="exp-category" required>
+            <option value="Rent">Rent</option>
+            <option value="Electricity">Electricity</option>
+            <option value="Internet">Internet</option>
+            <option value="Fuel">Fuel</option>
+            <option value="Courier">Courier</option>
+            <option value="Packing">Packing</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Office Supplies">Office Supplies</option>
+            <option value="Repairs">Repairs</option>
+            <option value="Miscellaneous" selected>Miscellaneous</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="exp-date">Expense Date *</label>
+          <input type="date" id="exp-date" required>
+        </div>
+        <div class="form-group">
+          <label for="exp-amount">Total Amount (₹) *</label>
+          <input type="number" id="exp-amount" min="0.01" step="0.01" required placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label for="exp-gst-rate">Includes GST Rate</label>
+          <select id="exp-gst-rate">
+            <option value="0" selected>0% (No GST)</option>
+            <option value="5">5% GST</option>
+            <option value="12">12% GST</option>
+            <option value="18">18% GST</option>
+            <option value="28">28% GST</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="exp-payment-method">Payment Mode *</label>
+          <select id="exp-payment-method" required>
+            <option value="UPI" selected>UPI</option>
+            <option value="Cash">Cash</option>
+            <option value="Bank Transfer">Bank Transfer</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Card">Card</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="exp-ref-no">Reference / Txn Number</label>
+          <input type="text" id="exp-ref-no" placeholder="e.g. UPI TRANSACTION ID">
+        </div>
+        <div class="form-group">
+          <label for="exp-notes">Description / Memo</label>
+          <input type="text" id="exp-notes" placeholder="Rent for July, fuel cost, etc.">
+        </div>
+        <div class="form-group">
+          <label for="exp-file">Upload Receipt</label>
+          <input type="file" id="exp-file" accept="image/*,application/pdf">
+        </div>
+        
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary-pill">SAVE EXPENSE</button>
+          <button type="button" class="btn btn-secondary-pill" id="btn-cancel-expense">CANCEL</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "my-zoho-gst",
+  "version": "1.0.0",
+  "description": "Personal Billing & GST Assistant built with Bun, SQLite, and Vanilla JS/CSS",
+  "main": "src/server.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/server.ts",
+    "dev": "bun run --hot src/server.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "bun-types": "1.3.14"
+  },
+  "engines": {
+    "bun": "1.3.14"
+  }
+}

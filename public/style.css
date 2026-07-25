@@ -1,0 +1,921 @@
+/* ==========================================================================
+   Caldera Design System - Mapped strictly to docs/design.md
+   ========================================================================== */
+
+:root {
+  /* Colors */
+  --color-ember: #fc5000;
+  --color-plasma-violet: #524ae9;
+  --color-sulfur: #f5f28e;
+  --color-limestone: #f7f6f2;
+  --color-pumice: #e2e2df;
+  --color-obsidian: #070607;
+  --color-chalk: #ffffff;
+
+  /* Typography — Font Families */
+  --font-pp-neue-corp-compact: 'Bebas Neue', 'PP Neue Corp Compact', ui-sans-serif, system-ui, sans-serif;
+  --font-dm-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-system-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Typography — Scale & Line Heights */
+  --text-caption: 12px;
+  --leading-caption: 1.20;
+  
+  --text-body-sm: 14px;
+  --leading-body-sm: 1.20;
+  
+  --text-body: 16px;
+  --leading-body: 1.55;
+  
+  --text-subheading: 26px;
+  --leading-subheading: 1.20;
+  
+  --text-heading-sm: 30px;
+  --leading-heading-sm: 1.50;
+  
+  --text-heading: 32px;
+  --leading-heading: 1.00;
+  --tracking-heading: 0.02em; /* 0.64px at 32px */
+  
+  --text-heading-lg: 48px;
+  --leading-heading-lg: 1.00;
+  
+  --text-heading-2xl: 80px;
+  --leading-heading-2xl: 1.10;
+  
+  --text-heading-3xl: 96px;
+  --leading-heading-3xl: 0.95;
+  
+  --text-display: 189px;
+  --leading-display: 0.94;
+
+  /* Typography — Weights */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500; /* DM Sans only uses weight 500 */
+
+  /* Spacing Scale (4px base grid) */
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-9: 9px;
+  --spacing-10: 10px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-18: 18px;
+  --spacing-20: 20px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+  --spacing-40: 40px;
+  --spacing-48: 48px;
+  --spacing-56: 56px;
+  --spacing-64: 64px;
+  --spacing-80: 80px;
+  --spacing-92: 92px;
+
+  /* Named Radii */
+  --radius-cards: 40px;
+  --radius-pills: 800px;
+  --radius-small: 16px;
+  --radius-inputs: 100px;
+  --radius-medium: 20px;
+  --radius-buttons: 40px;
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-dm-sans);
+  font-weight: var(--font-weight-medium); /* Medium (500) only for body */
+  background-color: var(--color-pumice); /* Pumice Canvas floor */
+  color: var(--color-obsidian);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Headings use PP Neue Corp Compact (Bebas Neue) with positive tracking */
+h1, h2, h3, h4, h5, h6, 
+.hero-title, .logo-text, .screen-title, .ember-card-title, .stat-value {
+  font-family: var(--font-pp-neue-corp-compact);
+  font-weight: var(--font-weight-regular); /* Bebas Neue is ultrabold display face */
+  color: var(--color-obsidian);
+  letter-spacing: var(--tracking-heading);
+  text-transform: uppercase;
+}
+
+/* Dotted Separators */
+.nav-divider {
+  display: inline-block;
+  width: 1.5px;
+  height: 24px;
+  border-left: 1.5px dotted var(--color-obsidian);
+  margin: 0 var(--spacing-16);
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  background-color: var(--color-pumice); /* Pumice Canvas floor */
+}
+
+.section-container-width {
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: 0 var(--spacing-40);
+}
+
+/* ==========================================================================
+   1. Caldera Floating Nav Bar (Limestone Pill Container on Pumice)
+   ========================================================================== */
+.nav-wrapper {
+  padding: var(--spacing-20) var(--spacing-40) var(--spacing-10);
+  background-color: var(--color-pumice);
+  flex-shrink: 0;
+}
+
+.nav-pill-container {
+  height: 64px;
+  background-color: var(--color-limestone);
+  border-radius: var(--radius-pills); /* 800px pill radius */
+  border: 1.5px solid var(--color-obsidian);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-24);
+  width: 100%;
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  color: var(--color-obsidian);
+  text-decoration: none;
+}
+
+.logo-icon {
+  font-size: 16px;
+  color: var(--color-ember); /* Ember accent logo */
+}
+
+.logo-text {
+  font-size: 20px;
+  font-weight: var(--font-weight-regular);
+}
+
+.nav-menu {
+  list-style: none;
+  display: flex;
+  gap: var(--spacing-9); /* separated by 9px gaps */
+}
+
+.nav-menu-link {
+  color: var(--color-obsidian);
+  text-decoration: none;
+  font-size: 14px;
+  font-family: var(--font-dm-sans);
+  font-weight: var(--font-weight-medium);
+  padding: 6px 12px;
+  border-radius: var(--radius-pills);
+  transition: all 0.1s ease;
+}
+
+.nav-menu-link:hover {
+  background-color: var(--color-pumice);
+}
+
+.nav-menu-link.active {
+  background-color: var(--color-obsidian);
+  color: var(--color-limestone);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-12);
+}
+
+.nav-search-box {
+  background-color: var(--color-limestone);
+  border: 1.5px solid var(--color-obsidian);
+  border-radius: var(--radius-pills);
+  padding: 4px var(--spacing-12);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+}
+
+.nav-search-box input {
+  background: none;
+  border: none;
+  color: var(--color-obsidian);
+  font-size: 13px;
+  outline: none;
+  width: 110px;
+  font-family: inherit;
+  font-weight: inherit;
+}
+
+.nav-search-box input::placeholder {
+  color: rgba(7, 6, 7, 0.4);
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  padding: 4px var(--spacing-12);
+  border-radius: var(--radius-pills);
+  border: 1.5px solid var(--color-obsidian);
+  background-color: var(--color-limestone);
+}
+
+.status-badge.connected {
+  color: var(--color-obsidian);
+}
+
+.status-badge.disconnected {
+  color: var(--color-ember);
+  border-color: var(--color-ember);
+}
+
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+/* Buttons */
+.btn {
+  font-family: var(--font-dm-sans);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  border: 1.5px solid var(--color-obsidian);
+  transition: transform 0.1s ease;
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+/* Primary CTA: Filled Ember with Obsidian text, 800px radius pill */
+.btn-primary-pill {
+  background-color: var(--color-ember);
+  color: var(--color-obsidian);
+  border-color: var(--color-obsidian);
+  border-radius: var(--radius-pills); /* 800px full pill */
+  padding: 12px var(--spacing-24);
+  font-size: 16px;
+}
+
+/* Secondary CTA: Transparent background, 1.5px Obsidian border, 40px radius */
+.btn-secondary-pill {
+  background-color: transparent;
+  color: var(--color-obsidian);
+  border-color: var(--color-obsidian);
+  border-radius: var(--radius-buttons); /* 40px radius */
+  padding: 12px var(--spacing-24);
+  font-size: 16px;
+}
+
+/* ==========================================================================
+   2. Screen Tiles & Elements (Comfortable Spacing, Flat)
+   ========================================================================== */
+.tab-content {
+  display: none;
+  animation: calderaFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tab-content.active {
+  display: block;
+}
+
+@keyframes calderaFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.screen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-40) 0 var(--spacing-20);
+}
+
+.screen-title {
+  font-size: var(--text-heading-lg); /* heading-lg is 48px */
+  line-height: 1.00;
+  color: var(--color-obsidian);
+}
+
+.screen-subtitle {
+  color: rgba(7, 6, 7, 0.6);
+  font-size: var(--text-body-sm); /* body-sm is 14px */
+  margin-top: var(--spacing-4);
+  text-transform: uppercase;
+}
+
+/* Hero Section (Limestone Content Card on Pumice canvas floor) */
+.hero-section {
+  padding: var(--spacing-40) 0;
+}
+
+.hero-limestone-card {
+  background-color: var(--color-limestone);
+  border: 1.5px solid var(--color-obsidian);
+  border-radius: var(--radius-cards); /* 40px border radius */
+  padding: var(--spacing-40);
+}
+
+.hero-title {
+  font-size: var(--text-heading-2xl); /* heading-2xl is 80px */
+  line-height: 1.10;
+  margin: var(--spacing-16) 0;
+  color: var(--color-obsidian);
+}
+
+.hero-tagline {
+  font-size: 18px; /* body scale */
+  font-weight: var(--font-weight-medium);
+  color: var(--color-obsidian);
+  max-width: 700px;
+  margin-bottom: var(--spacing-32);
+  line-height: 1.45;
+}
+
+.hero-action-buttons {
+  display: flex;
+  gap: var(--spacing-16);
+}
+
+/* Category Tag Badges */
+.tag-badge {
+  display: inline-block;
+  background-color: var(--color-sulfur); /* Sulfur yellow */
+  color: var(--color-obsidian);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  padding: 4px var(--spacing-12);
+  border-radius: var(--radius-pills); /* 800px pill shape */
+  border: 1.5px solid var(--color-obsidian);
+}
+
+.tag-badge-light {
+  display: inline-block;
+  background-color: var(--color-limestone);
+  color: var(--color-obsidian);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  padding: 4px var(--spacing-12);
+  border-radius: var(--radius-pills);
+  border: 1.5px solid var(--color-obsidian);
+}
+
+/* Stats Section (Pumice background, holding Limestone stat cards) */
+.stats-band {
+  padding: var(--spacing-40) 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-24);
+}
+
+.stat-card {
+  background-color: var(--color-limestone); /* Limestone surface */
+  border: 1.5px solid var(--color-obsidian);
+  border-radius: var(--radius-cards); /* 40px radius */
+  padding: var(--spacing-32);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  box-shadow: none; /* Flat. No shadows */
+}
+
+.stat-label {
+  font-size: var(--text-body-sm); /* body-sm is 14px */
+  color: rgba(7, 6, 7, 0.6);
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-size: var(--text-heading-lg); /* 48px Bebas Neue */
+  font-weight: var(--font-weight-regular);
+  color: var(--color-obsidian);
+}
+
+/* System Verification (Solid Ember Stat Card) */
+.verification-band {
+  padding: var(--spacing-40) 0;
+}
+
+.stat-feature-card-ember {
+  background-color: var(--color-ember); /* Ember solid background */
+  color: var(--color-chalk); /* Chalk text */
+  border: 1.5px solid var(--color-obsidian);
+  border-radius: var(--radius-cards); /* 40px radius */
+  padding: var(--spacing-40);
+  box-shadow: none;
+}
+
+.ember-card-title {
+  color: var(--color-chalk);
+  font-size: var(--text-heading-lg); /* heading-lg is 48px */
+  line-height: 1.00;
+  margin-top: var(--spacing-12);
+  margin-bottom: var(--spacing-24);
+}
+
+.verification-card-content p.card-desc {
+  font-size: var(--text-body);
+  color: var(--color-chalk);
+  line-height: 1.45;
+  margin-bottom: var(--spacing-32);
+}
+
+/* Tables in Dark/Ember Backgrounds */
+.verification-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--spacing-32);
+  text-align: left;
+}
+
+.verification-table th, 
+.verification-table td {
+  padding: var(--spacing-12) var(--spacing-16);
+  border-bottom: 1.5px dotted var(--color-obsidian); /* Obsidian dotted divider */
+  font-size: 14px;
+}
+
+.verification-table th {
+  color: rgba(7, 6, 7, 0.7);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-medium);
+}
+
+.verification-table td {
+  color: var(--color-obsidian);
+}
+
+.stat-feature-card-ember .verification-table td {
+  color: var(--color-chalk);
+}
+
+.stat-feature-card-ember .verification-table th {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.stat-feature-card-ember .verification-table th,
+.stat-feature-card-ember .verification-table td {
+  border-bottom: 1.5px dotted rgba(255, 255, 255, 0.2);
+}
+
+/* Alert inside Ember card (using Chalk-border style) */
+.alert-chalk {
+  padding: var(--spacing-16);
+  border-radius: var(--radius-small); /* 16px border-radius */
+  background-color: rgba(0, 0, 0, 0.1);
+  border: 1.5px solid var(--color-chalk);
+  font-size: var(--text-body-sm);
+  color: var(--color-chalk);
+  line-height: 1.45;
+}
+
+.alert-chalk strong {
+  color: var(--color-sulfur);
+  text-decoration: underline;
+}
+
+/* Empty States */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-48) var(--spacing-24);
+  background-color: var(--color-limestone);
+  border: 1.5px dashed var(--color-obsidian);
+  border-radius: var(--radius-cards); /* 40px radius */
+  text-align: center;
+  margin-top: var(--spacing-24);
+}
+
+.empty-state-icon {
+  font-size: 32px;
+  margin-bottom: var(--spacing-16);
+  color: var(--color-obsidian);
+}
+
+.empty-state h3 {
+  font-size: var(--text-subheading); /* subheading is 26px */
+  font-weight: var(--font-weight-regular);
+  margin-bottom: var(--spacing-8);
+  color: var(--color-obsidian);
+}
+
+.empty-state p {
+  color: rgba(7, 6, 7, 0.6);
+  font-size: var(--text-body);
+  max-width: 450px;
+}
+
+/* Input Fields & Forms */
+.content-card {
+  background-color: var(--color-limestone);
+  border: 1.5px solid var(--color-obsidian);
+  border-radius: var(--radius-cards); /* 40px radius */
+  padding: var(--spacing-40);
+}
+
+.settings-card {
+  max-width: 800px;
+  margin-top: var(--spacing-24);
+}
+
+.settings-card h3 {
+  font-size: var(--text-subheading);
+  margin-bottom: var(--spacing-24);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-24);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+.form-group label {
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  color: rgba(7, 6, 7, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Input Field: 100px border radius (pill-shaped), 1.5px border, Obsidian text */
+.form-group input {
+  background-color: var(--color-limestone);
+  border: 1.5px solid var(--color-obsidian);
+  border-radius: var(--radius-inputs); /* 100px border-radius */
+  padding: 12px var(--spacing-20);
+  color: var(--color-obsidian);
+  font-family: inherit;
+  font-weight: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.form-group input:focus {
+  border-color: var(--color-ember);
+}
+
+.form-group input[readonly] {
+  color: rgba(7, 6, 7, 0.5);
+  background-color: var(--color-pumice);
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   4. Caldera Footer & UI Components
+   ========================================================================== */
+.caldera-footer {
+  background-color: var(--color-pumice);
+  border-top: 1.5px dotted var(--color-obsidian);
+  padding: var(--spacing-32) 0;
+  flex-shrink: 0;
+}
+
+.footer-container {
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: 0 var(--spacing-40);
+}
+
+.footer-legal {
+  font-size: var(--text-caption); /* 12px caption */
+  color: rgba(7, 6, 7, 0.8);
+  line-height: var(--leading-caption);
+  text-align: center;
+  font-family: var(--font-dm-sans);
+}
+
+.footer-legal .fine-print {
+  margin-top: var(--spacing-8);
+  font-size: 11px;
+  color: rgba(7, 6, 7, 0.5);
+}
+
+/* Modals Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(7, 6, 7, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+#product-modal, #supplier-modal {
+  z-index: 2000;
+}
+
+.modal-card {
+  background-color: var(--color-limestone);
+  border: 1.5px solid var(--color-obsidian);
+  border-radius: var(--radius-cards); /* 40px radius */
+  padding: var(--spacing-40);
+  max-width: 720px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-title {
+  font-size: var(--text-heading);
+  margin-bottom: var(--spacing-24);
+  color: var(--color-obsidian);
+}
+
+/* Select inputs */
+.form-select {
+  background-color: var(--color-limestone);
+  border: 1.5px solid var(--color-obsidian);
+  border-radius: var(--radius-inputs); /* 100px border-radius */
+  padding: 12px var(--spacing-20);
+  color: var(--color-obsidian);
+  font-family: inherit;
+  font-weight: inherit;
+  font-size: 14px;
+  outline: none;
+  width: 100%;
+}
+
+.form-select:focus {
+  border-color: var(--color-ember);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-16);
+  margin-top: var(--spacing-32);
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+/* Table Search */
+.table-search-row {
+  margin-bottom: var(--spacing-24);
+}
+
+.search-input-field {
+  width: 100%;
+  border: 1.5px solid var(--color-obsidian);
+  border-radius: var(--radius-inputs); /* 100px border-radius */
+  padding: 12px var(--spacing-20);
+  background-color: var(--color-limestone);
+  outline: none;
+  font-size: 14px;
+  color: var(--color-obsidian);
+  font-family: inherit;
+  font-weight: inherit;
+}
+
+.search-input-field:focus {
+  border-color: var(--color-ember);
+}
+
+/* Data Tables */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.data-table th {
+  padding: var(--spacing-12) var(--spacing-16);
+  border-bottom: 2px solid var(--color-obsidian);
+  color: var(--color-obsidian);
+  font-weight: var(--font-weight-medium);
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.data-table td {
+  padding: var(--spacing-16);
+  border-bottom: 1.5px dotted var(--color-obsidian);
+  color: var(--color-obsidian);
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.data-table tr:hover td {
+  background-color: rgba(7, 6, 7, 0.03);
+}
+
+.table-empty-message {
+  padding: var(--spacing-32);
+  text-align: center;
+  font-size: 14px;
+  color: rgba(7, 6, 7, 0.6);
+  font-family: var(--font-dm-sans);
+}
+
+/* Small actions buttons */
+.btn-small {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: var(--radius-pills); /* 800px pill */
+  margin-right: var(--spacing-8);
+  font-family: var(--font-dm-sans);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  border: 1.5px solid var(--color-obsidian);
+  background-color: var(--color-limestone);
+  color: var(--color-obsidian);
+  transition: transform 0.1s ease;
+  display: inline-block;
+}
+
+.btn-small:active {
+  transform: scale(0.96);
+}
+
+.btn-small.edit {
+  background-color: var(--color-limestone);
+}
+
+.btn-small.edit:hover {
+  background-color: var(--color-pumice);
+}
+
+.btn-small.delete {
+  background-color: var(--color-ember);
+  color: var(--color-obsidian);
+}
+
+.btn-small.delete:hover {
+  background-color: #e04700;
+}
+
+/* ==========================================================================
+   5. Media Print Layout (A4 Tax Invoice Sheet Formatting)
+   ========================================================================== */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #invoice-print-modal, 
+  #invoice-print-modal * {
+    visibility: visible;
+  }
+  #invoice-print-modal {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: 9999 !important;
+    display: block !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .print-actions-toolbar {
+    display: none !important;
+  }
+  .modal-card {
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background-color: #ffffff !important;
+  }
+  /* Repeat headers and prevent table rows from splitting across pages */
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tfoot {
+    display: table-footer-group;
+  }
+}
+
+/* ==========================================================================
+   5. External API Switch UI Elements
+   ========================================================================== */
+.api-toggle-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--color-pumice);
+  border: 1.5px solid var(--color-obsidian);
+  transition: .25s ease;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3.5px;
+  bottom: 3.5px;
+  background-color: var(--color-obsidian);
+  transition: .25s ease;
+  border-radius: 50%;
+}
+
+.switch input:checked + .slider {
+  background-color: var(--color-ember);
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(23px);
+  background-color: var(--color-limestone);
+}
+

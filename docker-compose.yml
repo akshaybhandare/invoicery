@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: my-zoho-gst
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+    volumes:
+      # Mount the database file to persist invoicing data
+      - ./billing.db:/app/billing.db
+      # Mount attachments folder to persist uploaded documents
+      - ./attachments:/app/attachments
+    restart: unless-stopped

@@ -1,0 +1,15 @@
+# Dependency directories
+node_modules/
+
+# Local databases and SQLite temp files
+billing.db
+billing.db-journal
+billing.db-wal
+billing.db-shm
+
+# Attachments directory (contains user uploads)
+attachments/
+
+# macOS system files
+.DS_Store
+Thumbs.db
