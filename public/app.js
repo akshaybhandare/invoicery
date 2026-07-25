@@ -1612,6 +1612,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tdTot.textContent = parseFloat(item.total_amount).toFixed(2);
         tdTot.style.textAlign = "right";
         tdTot.style.padding = "8px";
+        tdTot.style.borderRight = "1px solid #000000";
         tdTot.style.borderBottom = "1px solid #000000";
         tr.appendChild(tdTot);
 
@@ -1749,6 +1750,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tdTotSum.textContent = parseFloat(invoice.grand_total - invoice.round_off).toFixed(2);
       tdTotSum.style.textAlign = "right";
       tdTotSum.style.padding = "8px";
+      tdTotSum.style.borderRight = "1px solid #000000";
       tdTotSum.style.borderBottom = "1px solid #000000";
       trSum.appendChild(tdTotSum);
 
@@ -1876,6 +1878,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tdTa.textContent = data.totalTax.toFixed(2);
         tdTa.style.textAlign = "right";
         tdTa.style.padding = "6px";
+        tdTa.style.borderRight = "1px solid #000000";
         tdTa.style.borderBottom = "1px solid #000000";
         tr.appendChild(tdTa);
 

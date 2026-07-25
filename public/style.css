@@ -851,6 +851,10 @@ h1, h2, h3, h4, h5, h6,
   .inv-print-table td {
     border: 1px solid #000 !important;
   }
+  .inv-print-table tr th:last-child,
+  .inv-print-table tr td:last-child {
+    border-right: 1px solid #000000 !important;
+  }
 
   /* Continuation mini-header */
   .inv-continuation-header {
