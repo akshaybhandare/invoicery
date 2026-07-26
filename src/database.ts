@@ -1,27 +1,82 @@
 import { Database } from "bun:sqlite";
-import { join } from "path";
+import { join, dirname } from "path";
+import { mkdirSync, existsSync, statSync } from "fs";
 
-// Initialize/open the database
-const dbPath = join(process.cwd(), "billing.db");
-export let db = new Database(dbPath);
+// Initialize/open database path (defaulting to data/billing.db)
+export const dbPath = process.env.DB_PATH || join(process.cwd(), "data", "billing.db");
 
-// Enable foreign key support
-db.run("PRAGMA foreign_keys = ON;");
+let realDb: Database | null = null;
+export let isDbInitialized = false;
+
+export function isDatabaseFileExisting(): boolean {
+  if (!existsSync(dbPath)) {
+    return false;
+  }
+  try {
+    return !statSync(dbPath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+export function initializeDatabase() {
+  if (realDb) return realDb;
+
+  const dbDir = dirname(dbPath);
+  if (dbDir && !existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+
+  if (existsSync(dbPath) && statSync(dbPath).isDirectory()) {
+    throw new Error(
+      `SQLite Error: Unable to open database at "${dbPath}" because it is a directory.\n` +
+      `If using Docker, ensure 'data' folder is mounted as a volume directory (e.g. './data:/app/data').`
+    );
+  }
+
+  realDb = new Database(dbPath, { create: true });
+  realDb.run("PRAGMA foreign_keys = ON;");
+  isDbInitialized = true;
+  initSchema();
+  return realDb;
+}
+
+// Export db proxy so all imports `import { db }` continue working seamlessly
+export const db = new Proxy({} as Database, {
+  get(_target, prop, receiver) {
+    if (!realDb) {
+      initializeDatabase();
+    }
+    const val = Reflect.get(realDb!, prop, receiver);
+    if (typeof val === "function") {
+      return val.bind(realDb);
+    }
+    return val;
+  }
+});
+
+// Auto-initialize on server start ONLY if database file already exists
+if (isDatabaseFileExisting()) {
+  initializeDatabase();
+}
 
 export function reopenDatabase() {
-  try {
-    db.close();
-  } catch (e) {
-    console.error("Error closing database connection during restore:", e);
+  if (realDb) {
+    try {
+      realDb.close();
+    } catch (e) {
+      console.error("Error closing database connection during restore:", e);
+    }
+    realDb = null;
   }
-  db = new Database(dbPath);
-  db.run("PRAGMA foreign_keys = ON;");
+  return initializeDatabase();
 }
 
 // Create schema tables
 export function initSchema() {
+  const targetDb = realDb || db;
   // 1. Settings Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL

@@ -33,7 +33,7 @@ This document details the completed implementation of Phase 5 deliverables under
 
 ### 4. Database ZIP Backup & Restore Utility (`src/server.ts` & `public/app.js`)
 - **Backup Endpoint (`GET /api/backup`)**:
-  - Invokes macOS's native `zip` command quietly to package `billing.db` and the `./attachments/` directory recursively into a single ZIP archive, serving it as a direct download.
+  - Invokes macOS's native `zip` command quietly to package `data/billing.db` and the `./attachments/` directory recursively into a single ZIP archive, serving it as a direct download.
 - **Restore Endpoint (`POST /api/restore`)**:
   - Accepts a ZIP archive upload.
   - Closes the active database file handle, extracts the ZIP (overwriting the database and receipts directory), and restarts the SQLite connection immediately, reloading the client view automatically.

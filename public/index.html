@@ -190,7 +190,7 @@
                     <tr>
                       <td>SQLite Schema</td>
                       <td><span class="tag-badge-light">Mounted</span></td>
-                      <td>12 relational schemas loaded in billing.db</td>
+                      <td>12 relational schemas loaded in data/billing.db</td>
                     </tr>
                     <tr>
                       <td>Tax Context</td>
@@ -1780,6 +1780,23 @@
           <button type="button" class="btn btn-secondary-pill" id="btn-cancel-expense">CANCEL</button>
         </div>
       </form>
+  <!-- FIRST TIME DB INITIALIZATION MODAL -->
+  <div id="modal-init-db" class="modal-backdrop" style="display: none; z-index: 9999; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);">
+    <div class="modal-card" style="max-width: 500px; text-align: center; border: 1px solid var(--accent-gold, #f3ba2f); box-shadow: 0 10px 40px rgba(0,0,0,0.8);">
+      <div style="font-size: 3rem; margin-bottom: 0.5rem;">📁⚡</div>
+      <h3 class="modal-title" style="color: var(--accent-gold, #f3ba2f);">INITIALIZE BILLING DATABASE</h3>
+      <p style="color: #ccc; margin: 1rem 0; line-height: 1.5; font-size: 0.95rem;">
+        No existing database file was found at <code id="init-db-path-code" style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">data/billing.db</code>.
+      </p>
+      <p style="color: #aaa; margin-bottom: 1.5rem; font-size: 0.85rem;">
+        Would you like to initialize a fresh SQLite database and seed initial settings now?
+      </p>
+      <div class="form-actions" style="justify-content: center; gap: 12px;">
+        <button type="button" id="btn-confirm-init-db" class="btn btn-primary-pill" style="padding: 10px 24px; font-weight: bold;">
+          YES, CREATE DATABASE
+        </button>
+      </div>
+      <div id="init-db-status-msg" style="margin-top: 12px; font-size: 0.85rem; color: #888;"></div>
     </div>
   </div>
 

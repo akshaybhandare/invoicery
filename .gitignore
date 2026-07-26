@@ -2,6 +2,11 @@
 node_modules/
 
 # Local databases and SQLite temp files
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+!data/.gitkeep
 billing.db
 billing.db-journal
 billing.db-wal

@@ -21,7 +21,7 @@ This tracker outlines the user stories, tasks, and completion statuses for the P
   * *Status*: Completed
   * *Handover Note*: Refer to [handover_phase_1.md](file:///Users/akshaybhandare/3D/GST/myZoho/docs/handover_phase_1.md)
 * [x] **Task 1.2: SQLite Database Schema Creation**
-  * Create `database.ts` using native `bun:sqlite` to initialize `billing.db`.
+  * Create `database.ts` using native `bun:sqlite` to initialize `data/billing.db`.
   * Define schemas for: `settings`, `gst_rates`, `customers`, `suppliers`, `products`, `invoices`, `invoice_items`, `purchases`, `purchase_items`, `expenses`, `payments`, `attachments`.
   * *Status*: Completed
   * *Handover Note*: Refer to [handover_phase_1.md](file:///Users/akshaybhandare/3D/GST/myZoho/docs/handover_phase_1.md)

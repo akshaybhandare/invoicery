@@ -41,7 +41,7 @@ It mixes the safety of an **offline-first local database** with the convenience 
 * **Inventory Control & Ledger Sync:** Integrated stocks auto-deduct upon sales invoices and auto-increment upon recording purchases.
 * **Modern Dark Aesthetics:** A bespoke UI constructed with high-contrast, premium dark mode styling and reactive SVG analytical widgets.
 * **Bridges to External Apps:** A secure API token system lets you hook up scanning devices, command line utilities, or inventory scripts directly to your billing book.
-* **Seamless Backups:** Pack up your entire database (`billing.db`) and uploaded files/receipts (`attachments/`) into a single portable zip file, and restore it with one click.
+* **Seamless Backups:** Pack up your entire database (`data/billing.db`) and uploaded files/receipts (`attachments/`) into a single portable zip file, and restore it with one click.
 
 ---
 
@@ -127,7 +127,7 @@ To freeze the environment and guarantee that future OS updates, library updates,
 
 3. **Persistent Directories:**
    The `docker-compose.yml` links directories from your host machine so your records are never lost when containers reboot:
-   * `./billing.db` ── Persistent SQLite database file.
+   * `./data/` ── Storehouse for persistent SQLite database (`data/billing.db`).
    * `./attachments/` ── Storehouse for invoice PDF and receipt uploads.
 
 ---
@@ -159,12 +159,13 @@ If you use **Docker Compose Manager**, **Dockge**, or **Portainer** on Unraid:
 4. Add **Port Mapping**:
    - Container Port: `3000` | Host Port: `3000` (or your choice of host port)
 5. Add **Volume Mappings**:
-   - Container Path: `/app/billing.db` ➔ Host Path: `/mnt/user/appdata/invoicery/billing.db`
+   - Container Path: `/app/data` ➔ Host Path: `/mnt/user/appdata/invoicery/data`
    - Container Path: `/app/attachments` ➔ Host Path: `/mnt/user/appdata/invoicery/attachments`
 6. Add **Environment Variables**:
    - `PORT`: `3000`
    - `HOST`: `0.0.0.0`
    - `NODE_ENV`: `production`
+   - `DB_PATH`: `/app/data/billing.db`
 7. Click **Apply**.
 
 ---
@@ -178,6 +179,7 @@ You can configure port and bindings easily. These are pre-configured in the Dock
 | `PORT` | `3000` | Port server runs on |
 | `HOST` | `127.0.0.1` | Binding address (set to `0.0.0.0` for Docker/LAN access) |
 | `NODE_ENV` | `production` | Running profile flag |
+| `DB_PATH` | `./data/billing.db` | Relative or absolute path to SQLite database |
 
 ---
 
@@ -199,7 +201,7 @@ Include one of the following credentials inside your HTTP headers (manage your c
 | `POST` | `/api/invoices` | `JSON` | Generates a sales record & subtracts stock |
 | `POST` | `/api/purchases` | `JSON` | Creates a vendor receipt & increments stock |
 | `POST` | `/api/products/adjust` | `JSON` | Direct stock adjustment override |
-| `GET` | `/api/backup` | `Binary Stream` | Combines `billing.db` and attachments into a ZIP |
+| `GET` | `/api/backup` | `Binary Stream` | Combines `data/billing.db` and attachments into a ZIP |
 | `POST` | `/api/restore` | `Multipart FormData` | Overwrites active database from a backup ZIP |
 
 ---

@@ -244,6 +244,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.status === "OK") {
         statusBadge.className = "status-badge connected";
         statusText.textContent = "ONLINE";
+        
+        if (data.initialized === false) {
+          const initPathCode = document.getElementById("init-db-path-code");
+          if (initPathCode && data.db_path) {
+            initPathCode.textContent = data.db_path;
+          }
+          openModal("modal-init-db");
+        }
         if (data.settings) {
           setBizName.value = data.settings.business_name || "";
           setBizGst.value = data.settings.business_gstin || "";
@@ -2406,6 +2414,33 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       console.error("Fetch purchases error:", err);
     }
+  }
+
+  // --- Database Initialization Modal Handler ---
+  const btnConfirmInitDb = document.getElementById("btn-confirm-init-db");
+  if (btnConfirmInitDb) {
+    btnConfirmInitDb.addEventListener("click", async () => {
+      const msgDiv = document.getElementById("init-db-status-msg");
+      if (msgDiv) msgDiv.textContent = "Creating database...";
+      btnConfirmInitDb.disabled = true;
+      try {
+        const res = await fetch("/api/init-db", { method: "POST" });
+        const json = await res.json();
+        if (res.ok && json.success) {
+          if (msgDiv) msgDiv.textContent = "Database created successfully!";
+          setTimeout(() => {
+            closeModal("modal-init-db");
+            location.reload();
+          }, 600);
+        } else {
+          if (msgDiv) msgDiv.textContent = json.error || "Failed to initialize database";
+          btnConfirmInitDb.disabled = false;
+        }
+      } catch (err) {
+        if (msgDiv) msgDiv.textContent = "Error connecting to server";
+        btnConfirmInitDb.disabled = false;
+      }
+    });
   }
 
   // --- Expenses Editor ---

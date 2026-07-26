@@ -10,9 +10,10 @@ services:
       - PORT=3000
       - HOST=0.0.0.0
       - NODE_ENV=production
+      - DB_PATH=/app/data/billing.db
     volumes:
-      # Mount the database file to persist invoicing data
-      - ./billing.db:/app/billing.db
+      # Mount data folder to persist SQLite database file
+      - ./data:/app/data
       # Mount attachments folder to persist uploaded documents
       - ./attachments:/app/attachments
     restart: unless-stopped

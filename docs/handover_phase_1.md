@@ -9,7 +9,7 @@ This document details the completed components for **Phase 1** and lists the ste
 1. **Bun Project Configurations** (`package.json`):
    - Configured scripts to launch the application using Bun: `bun run dev` (with hot-reloading enabled).
 2. **SQLite Database Initialization** (`src/database.ts`):
-   - Database creates `billing.db` at the root of the project.
+   - Database creates `data/billing.db` inside the `./data/` folder.
    - Built-in table initialization for 12 relational schemas: settings, customer list, product catalogue, invoices, invoice line items, purchases, expenses, and attachments.
    - Seeding rules: Populates base state as **Karnataka** (State code: `29`), default invoice formatting details (`INV-` prefix, sequence starting index `1`), and standard GST tax bands (0%, 5%, 12%, 18%, 28%).
 3. **High-Performance Local Server** (`src/server.ts`):

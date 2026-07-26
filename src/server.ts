@@ -1,10 +1,14 @@
 import { serve } from "bun";
 import { spawnSync } from "node:child_process";
 import { unlinkSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { 
   db,
+  dbPath,
+  isDbInitialized,
+  initializeDatabase,
+  isDatabaseFileExisting,
   initSchema, 
   getSettings,
   updateSetting,
@@ -51,9 +55,6 @@ import { generateGstr1 } from "./gstr1Generator";
 
 // Ensure local attachments storage folder exists securely
 await mkdir("./attachments", { recursive: true });
-
-// Initialize database schema
-initSchema();
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || "127.0.0.1"; // Default to localhost for security compliance
@@ -391,16 +392,37 @@ const server = serve({
     // --- API: Status Check ---
     if (url.pathname === "/api/status" && method === "GET") {
       try {
-        const settings = getSettings();
+        const initialized = isDbInitialized || isDatabaseFileExisting();
+        const settings = initialized ? getSettings() : {};
         return jsonResponse({
           status: "OK",
           runtime: "Bun",
           database: "SQLite (bun:sqlite)",
+          db_path: dbPath,
+          initialized: initialized,
           settings: settings
         });
       } catch (err: any) {
         console.error("API Status Error:", err);
         return jsonResponse({ status: "ERROR", message: "Failed to read configuration settings" }, 500);
+      }
+    }
+
+    // --- API: First-Time Database Initialization ---
+    if (url.pathname === "/api/init-db" && method === "POST") {
+      try {
+        initializeDatabase();
+        const settings = getSettings();
+        return jsonResponse({
+          success: true,
+          message: "Database created and initialized successfully",
+          db_path: dbPath,
+          initialized: true,
+          settings: settings
+        });
+      } catch (err: any) {
+        console.error("API Init DB Error:", err);
+        return jsonResponse({ error: err.message || "Failed to initialize database" }, 500);
       }
     }
 
@@ -1150,10 +1172,9 @@ const server = serve({
     // --- API: Backup Utility ---
     if (url.pathname === "/api/backup" && method === "GET") {
       try {
-        const zipPath = "/tmp/invoicery_backup.zip";
-        
+        const relDbPath = relative(process.cwd(), dbPath);
         // Quietly zip the database and local files attachments folder recursively
-        const proc = spawnSync("zip", ["-r", "-q", zipPath, "billing.db", "attachments"]);
+        const proc = spawnSync("zip", ["-r", "-q", zipPath, relDbPath, "attachments"]);
         if (proc.status !== 0) {
           throw new Error(proc.stderr?.toString() || "Failed to package database and attachments");
         }
