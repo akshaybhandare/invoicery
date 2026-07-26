@@ -45,7 +45,11 @@ export function initializeDatabase() {
 export const db = new Proxy({} as Database, {
   get(_target, prop, receiver) {
     if (!realDb) {
-      initializeDatabase();
+      if (isDatabaseFileExisting()) {
+        initializeDatabase();
+      } else {
+        throw new Error("Database file does not exist yet. Please confirm database initialization in the UI first.");
+      }
     }
     const val = Reflect.get(realDb!, prop, receiver);
     if (typeof val === "function") {

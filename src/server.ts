@@ -392,13 +392,13 @@ const server = serve({
     // --- API: Status Check ---
     if (url.pathname === "/api/status" && method === "GET") {
       try {
-        const initialized = isDbInitialized || isDatabaseFileExisting();
+        const initialized = isDatabaseFileExisting();
         const settings = initialized ? getSettings() : {};
         return jsonResponse({
           status: "OK",
           runtime: "Bun",
           database: "SQLite (bun:sqlite)",
-          db_path: dbPath,
+          db_path: relative(process.cwd(), dbPath),
           initialized: initialized,
           settings: settings
         });
