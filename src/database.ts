@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { join, dirname } from "path";
-import { mkdirSync, existsSync, statSync } from "fs";
+import { mkdirSync, existsSync, statSync, unlinkSync } from "fs";
 
 export interface Customer {
   id: string;
@@ -64,6 +64,7 @@ export interface InvoicePayload {
   invoice_date: string;
   customer_id: string;
   place_of_supply?: string | null;
+  online_order_number?: string | null;
   notes?: string | null;
   taxable_value: number;
   cgst_amount: number;
@@ -142,8 +143,17 @@ export function isDatabaseFileExisting(): boolean {
   }
 }
 
-export function initializeDatabase() {
-  if (realDb) return realDb;
+export function initializeDatabase(forceReopen = false) {
+  if (forceReopen || !existsSync(dbPath)) {
+    closeDatabase();
+  } else if (realDb) {
+    try {
+      realDb.query("SELECT 1;").get();
+      return realDb;
+    } catch (e) {
+      closeDatabase();
+    }
+  }
 
   const dbDir = dirname(dbPath);
   if (dbDir && !existsSync(dbDir)) {
@@ -157,11 +167,22 @@ export function initializeDatabase() {
     );
   }
 
+  // Clean up any stale orphaned journal / wal / shm files if main db file does not exist
+  if (!existsSync(dbPath)) {
+    const walFile = `${dbPath}-wal`;
+    const shmFile = `${dbPath}-shm`;
+    const journalFile = `${dbPath}-journal`;
+    try { if (existsSync(walFile)) unlinkSync(walFile); } catch(e) {}
+    try { if (existsSync(shmFile)) unlinkSync(shmFile); } catch(e) {}
+    try { if (existsSync(journalFile)) unlinkSync(journalFile); } catch(e) {}
+  }
+
   realDb = new Database(dbPath, { create: true });
-  realDb.run("PRAGMA foreign_keys = ON;");
-  realDb.run("PRAGMA journal_mode = WAL;");
-  realDb.run("PRAGMA synchronous = NORMAL;");
-  realDb.run("PRAGMA cache_size = -8000;");
+  try {
+    realDb.exec("PRAGMA journal_mode = DELETE; PRAGMA foreign_keys = ON; PRAGMA synchronous = NORMAL; PRAGMA cache_size = -8000;");
+  } catch (e) {
+    console.error("Pragma initialization warning:", e);
+  }
   isDbInitialized = true;
   initSchema();
   return realDb;
@@ -170,16 +191,31 @@ export function initializeDatabase() {
 // Export db proxy so all imports `import { db }` continue working seamlessly
 export const db = new Proxy({} as Database, {
   get(_target, prop, receiver) {
-    if (!realDb) {
+    if (!realDb || !existsSync(dbPath)) {
       if (isDatabaseFileExisting()) {
-        initializeDatabase();
+        initializeDatabase(true);
       } else {
         throw new Error("Database file does not exist yet. Please confirm database initialization in the UI first.");
       }
     }
     const val = Reflect.get(realDb!, prop, receiver);
     if (typeof val === "function") {
-      return val.bind(realDb);
+      return function (...args: any[]) {
+        try {
+          return val.apply(realDb, args);
+        } catch (err: any) {
+          if (err && (err.code === "SQLITE_IOERR_VNODE" || err.message?.includes("disk I/O error"))) {
+            console.warn("Detected stale SQLite handle. Attempting automatic recovery...");
+            closeDatabase();
+            if (isDatabaseFileExisting()) {
+              initializeDatabase(true);
+              const freshVal = Reflect.get(realDb!, prop, receiver);
+              return freshVal.apply(realDb, args);
+            }
+          }
+          throw err;
+        }
+      };
     }
     return val;
   }
@@ -194,6 +230,8 @@ export function closeDatabase() {
   if (realDb) {
     try {
       realDb.run("PRAGMA wal_checkpoint(TRUNCATE);");
+    } catch (e) {}
+    try {
       realDb.close();
     } catch (e) {
       console.error("Error closing database:", e);
@@ -291,6 +329,7 @@ export function initSchema() {
       invoice_date DATE NOT NULL,
       customer_id TEXT NOT NULL REFERENCES customers(id),
       place_of_supply TEXT NOT NULL,
+      online_order_number TEXT,
       payment_terms TEXT,
       due_date DATE,
       notes TEXT,
@@ -428,6 +467,13 @@ export function initSchema() {
   // Migration: Add hsn_sac_code column to invoice_items if it doesn't exist
   try {
     targetDb.run("ALTER TABLE invoice_items ADD COLUMN hsn_sac_code TEXT;");
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
+  // Migration: Add online_order_number column to invoices if it doesn't exist
+  try {
+    targetDb.run("ALTER TABLE invoices ADD COLUMN online_order_number TEXT;");
   } catch (e) {
     // Column already exists, ignore
   }
@@ -654,7 +700,7 @@ export function getNextInvoiceNumber() {
 
 export function getInvoices() {
   return db.query(`
-    SELECT i.invoice_number as id, i.invoice_date, i.customer_id, i.place_of_supply, i.taxable_amount as taxable_value, i.total_cgst as cgst_amount, i.total_sgst as sgst_amount, i.total_igst as igst_amount, i.round_off, i.grand_total, i.status, c.name as customer_name,
+    SELECT i.invoice_number as id, i.invoice_date, i.customer_id, i.place_of_supply, i.online_order_number, i.taxable_amount as taxable_value, i.total_cgst as cgst_amount, i.total_sgst as sgst_amount, i.total_igst as igst_amount, i.round_off, i.grand_total, i.status, c.name as customer_name, c.gstin as customer_gstin,
            COALESCE((SELECT SUM(amount) FROM payments WHERE invoice_number = i.invoice_number), 0) as paid_amount 
     FROM invoices i
     LEFT JOIN customers c ON i.customer_id = c.id
@@ -664,7 +710,7 @@ export function getInvoices() {
 
 export function getInvoice(id: string) {
   const invoice = db.query(`
-    SELECT i.invoice_number as id, i.invoice_date, i.customer_id, i.place_of_supply, c.state_code, i.taxable_amount as taxable_value, i.total_cgst as cgst_amount, i.total_sgst as sgst_amount, i.total_igst as igst_amount, i.round_off, i.grand_total, i.notes, i.status, c.name as customer_name, c.gstin as customer_gstin, c.phone as customer_phone, c.billing_address as customer_billing_address,
+    SELECT i.invoice_number as id, i.invoice_date, i.customer_id, i.place_of_supply, i.online_order_number, c.state_code, i.taxable_amount as taxable_value, i.total_cgst as cgst_amount, i.total_sgst as sgst_amount, i.total_igst as igst_amount, i.round_off, i.grand_total, i.notes, i.status, c.name as customer_name, c.gstin as customer_gstin, c.phone as customer_phone, c.billing_address as customer_billing_address,
            COALESCE((SELECT SUM(amount) FROM payments WHERE invoice_number = i.invoice_number), 0) as paid_amount
     FROM invoices i
     LEFT JOIN customers c ON i.customer_id = c.id
@@ -692,8 +738,8 @@ export function createInvoice(inv: InvoicePayload, items: InvoiceItemPayload[]) 
 
     // 1. Insert invoice header record
     const insertInv = db.prepare(`
-      INSERT INTO invoices (invoice_number, invoice_date, customer_id, place_of_supply, notes, taxable_amount, total_cgst, total_sgst, total_igst, round_off, grand_total, status)
-      VALUES ($invoice_number, $invoice_date, $customer_id, $place_of_supply, $notes, $taxable_amount, $total_cgst, $total_sgst, $total_igst, $round_off, $grand_total, $status);
+      INSERT INTO invoices (invoice_number, invoice_date, customer_id, place_of_supply, online_order_number, notes, taxable_amount, total_cgst, total_sgst, total_igst, round_off, grand_total, status)
+      VALUES ($invoice_number, $invoice_date, $customer_id, $place_of_supply, $online_order_number, $notes, $taxable_amount, $total_cgst, $total_sgst, $total_igst, $round_off, $grand_total, $status);
     `);
     
     insertInv.run({
@@ -701,6 +747,7 @@ export function createInvoice(inv: InvoicePayload, items: InvoiceItemPayload[]) 
       $invoice_date: inv.invoice_date,
       $customer_id: inv.customer_id,
       $place_of_supply: inv.place_of_supply,
+      $online_order_number: inv.online_order_number || null,
       $notes: inv.notes || null,
       $taxable_amount: inv.taxable_value,
       $total_cgst: inv.cgst_amount,

@@ -6,11 +6,72 @@ document.addEventListener("DOMContentLoaded", () => {
   const statusText = document.getElementById("status-text");
   let activeSelectForQuickProductAdd = null;
 
+  // --- Indian States & UTs Central Registry ---
+  const INDIAN_STATES = [
+    { name: "Jammu & Kashmir", code: "01" },
+    { name: "Himachal Pradesh", code: "02" },
+    { name: "Punjab", code: "03" },
+    { name: "Chandigarh", code: "04" },
+    { name: "Uttarakhand", code: "05" },
+    { name: "Haryana", code: "06" },
+    { name: "Delhi", code: "07" },
+    { name: "Rajasthan", code: "08" },
+    { name: "Uttar Pradesh", code: "09" },
+    { name: "Bihar", code: "10" },
+    { name: "Sikkim", code: "11" },
+    { name: "Arunachal Pradesh", code: "12" },
+    { name: "Nagaland", code: "13" },
+    { name: "Manipur", code: "14" },
+    { name: "Mizoram", code: "15" },
+    { name: "Tripura", code: "16" },
+    { name: "Meghalaya", code: "17" },
+    { name: "Assam", code: "18" },
+    { name: "West Bengal", code: "19" },
+    { name: "Jharkhand", code: "20" },
+    { name: "Odisha", code: "21" },
+    { name: "Chhattisgarh", code: "22" },
+    { name: "Madhya Pradesh", code: "23" },
+    { name: "Gujarat", code: "24" },
+    { name: "Dadra & Nagar Haveli and Daman & Diu", code: "26" },
+    { name: "Maharashtra", code: "27" },
+    { name: "Andhra Pradesh (Old)", code: "28" },
+    { name: "Karnataka", code: "29" },
+    { name: "Goa", code: "30" },
+    { name: "Lakshadweep", code: "31" },
+    { name: "Kerala", code: "32" },
+    { name: "Tamil Nadu", code: "33" },
+    { name: "Puducherry", code: "34" },
+    { name: "Andaman & Nicobar Islands", code: "35" },
+    { name: "Telangana", code: "36" },
+    { name: "Andhra Pradesh", code: "37" },
+    { name: "Ladakh", code: "38" },
+    { name: "Other Territory", code: "97" }
+  ];
+
+  function populateStateSelect(selectId, defaultState = "Karnataka") {
+    const el = document.getElementById(selectId);
+    if (!el) return;
+    const currentVal = el.value || defaultState;
+    el.innerHTML = INDIAN_STATES.map(s =>
+      `<option value="${s.name}" data-code="${s.code}"${s.name === currentVal ? " selected" : ""}>${s.name} (${s.code})</option>`
+    ).join("");
+  }
+
+  // Populate all state dropdowns across Customer, Supplier, Invoice, and Settings modules
+  ["cust-state", "inv-supply-state", "sup-state", "set-biz-state"].forEach(id => populateStateSelect(id));
+
   // Settings values elements
   const setBizName = document.getElementById("set-biz-name");
   const setBizGst = document.getElementById("set-biz-gst");
   const setBizState = document.getElementById("set-biz-state");
   const setBizStateCode = document.getElementById("set-biz-state-code");
+
+  if (setBizState && setBizStateCode) {
+    setBizState.addEventListener("change", () => {
+      const selectedOpt = setBizState.options[setBizState.selectedIndex];
+      setBizStateCode.value = selectedOpt ? (selectedOpt.getAttribute("data-code") || "29") : "29";
+    });
+  }
 
   // --- 1. SPA Tab Routing ---
   function switchTab(tabId) {
@@ -840,6 +901,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- 7. Invoices Module Client Logic ---
   const btnCreateInvoice = document.getElementById("btn-create-invoice");
+  const btnQuickInvoice = document.getElementById("btn-quick-invoice");
   const btnCancelInvoice = document.getElementById("btn-cancel-invoice");
   const btnAddInvoiceLine = document.getElementById("btn-add-invoice-line");
   const invoiceForm = document.getElementById("invoice-form");
@@ -893,12 +955,20 @@ document.addEventListener("DOMContentLoaded", () => {
           tdNo.textContent = inv.id;
           tr.appendChild(tdNo);
           
+          const tdOrderNo = document.createElement("td");
+          tdOrderNo.textContent = inv.online_order_number || "—";
+          tr.appendChild(tdOrderNo);
+
           const tdDate = document.createElement("td");
           tdDate.textContent = inv.invoice_date;
           tr.appendChild(tdDate);
           
           const tdCust = document.createElement("td");
-          tdCust.textContent = inv.customer_name || "UNKNOWN CUSTOMER";
+          if (inv.customer_gstin && inv.customer_gstin.trim() && inv.customer_gstin !== "—") {
+            tdCust.innerHTML = `<div>${inv.customer_name || "UNKNOWN CUSTOMER"}</div><small style="color: var(--color-vermillion, #e11d48); font-weight: 500;">GSTIN: ${inv.customer_gstin}</small>`;
+          } else {
+            tdCust.textContent = inv.customer_name || "UNKNOWN CUSTOMER";
+          }
           tr.appendChild(tdCust);
           
           const tdPos = document.createElement("td");
@@ -981,7 +1051,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Open invoice creation editor modal
-  btnCreateInvoice.addEventListener("click", async () => {
+  async function openNewInvoiceModal() {
     // Set loading indicator
     document.getElementById("inv-id-display").value = "INV-XXXXXX (GENERATING...)";
     invoiceEditorItemsList.innerHTML = "";
@@ -990,8 +1060,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const today = new Date().toISOString().split("T")[0];
     invDateInput.value = today;
 
-    // Reset notes
+    // Reset online order number, tax calculation mode & notes
+    const onlineOrderNoInput = document.getElementById("inv-online-order-no");
+    if (onlineOrderNoInput) onlineOrderNoInput.value = "";
+    const taxInclusiveCheck = document.getElementById("inv-tax-inclusive");
+    if (taxInclusiveCheck) taxInclusiveCheck.checked = false;
     document.getElementById("inv-notes").value = "";
+
+    const custInfoBanner = document.getElementById("inv-cust-info-banner");
+    if (custInfoBanner) custInfoBanner.style.display = "none";
 
     await loadInvoiceDropdownCaches();
 
@@ -1000,7 +1077,7 @@ document.addEventListener("DOMContentLoaded", () => {
     cachedCustomers.forEach(cust => {
       const opt = document.createElement("option");
       opt.value = cust.id;
-      opt.textContent = `${cust.name} (${cust.id})`;
+      opt.textContent = `${cust.name} (${cust.id})${cust.gstin ? ' - GSTIN: ' + cust.gstin : ''}`;
       invCustomerSelect.appendChild(opt);
     });
 
@@ -1024,25 +1101,43 @@ document.addEventListener("DOMContentLoaded", () => {
     recalculateInvoice();
 
     openModal("invoice-editor-modal");
-  });
+  }
+
+  if (btnCreateInvoice) btnCreateInvoice.addEventListener("click", openNewInvoiceModal);
+  if (btnQuickInvoice) btnQuickInvoice.addEventListener("click", openNewInvoiceModal);
 
   btnCancelInvoice.addEventListener("click", () => {
     closeModal("invoice-editor-modal");
   });
 
-  // Auto Place of Supply update on customer selection
+  // Auto Place of Supply and Customer details banner update on customer selection
   invCustomerSelect.addEventListener("change", () => {
     const custId = invCustomerSelect.value;
     const customer = cachedCustomers.find(c => c.id === custId);
+    const banner = document.getElementById("inv-cust-info-banner");
     if (customer) {
-      invSupplyStateSelect.value = customer.state;
+      invSupplyStateSelect.value = customer.state || "Karnataka";
+      if (banner) {
+        banner.style.display = "block";
+        const gstinEl = document.getElementById("inv-cust-gstin-display");
+        const addrEl = document.getElementById("inv-cust-address-display");
+        if (gstinEl) gstinEl.textContent = (customer.gstin && customer.gstin.trim() !== "" && customer.gstin !== "—") ? customer.gstin : "—";
+        if (addrEl) addrEl.textContent = customer.billing_address || "No address provided";
+      }
       recalculateInvoice();
+    } else if (banner) {
+      banner.style.display = "none";
     }
   });
 
   invSupplyStateSelect.addEventListener("change", () => {
     recalculateInvoice();
   });
+
+  const taxInclusiveCheck = document.getElementById("inv-tax-inclusive");
+  if (taxInclusiveCheck) {
+    taxInclusiveCheck.addEventListener("change", recalculateInvoice);
+  }
 
   // Add Item Row to Grid
   function addInvoiceItemRow() {
@@ -1246,19 +1341,28 @@ document.addEventListener("DOMContentLoaded", () => {
     const posStateCode = selectedOption ? selectedOption.getAttribute("data-code") : "29";
     const isLocal = (posStateCode === "29");
 
+    const isInclusive = document.getElementById("inv-tax-inclusive")?.checked || false;
+
     rows.forEach(row => {
       const qtyInput = row.querySelector(".item-qty-input");
       const priceInput = row.querySelector(".item-price-input");
       const taxableCell = row.querySelector(".item-taxable-val-cell");
       
       const qty = qtyInput ? parseFloat(qtyInput.value) || 0 : 0;
-      const price = priceInput ? parseFloat(priceInput.value) || 0 : 0;
+      const rawPrice = priceInput ? parseFloat(priceInput.value) || 0 : 0;
       
-      const taxableValue = qty * price;
-      taxableCell.textContent = `₹${taxableValue.toFixed(2)}`;
-
       const gstSelect = row.querySelector(".item-gst-select");
       const gstRate = gstSelect ? parseFloat(gstSelect.value) || 0 : 0;
+
+      let taxableValue = 0;
+      if (isInclusive) {
+        const totalGross = qty * rawPrice;
+        taxableValue = totalGross / (1 + (gstRate / 100));
+      } else {
+        taxableValue = qty * rawPrice;
+      }
+      
+      taxableCell.textContent = `₹${taxableValue.toFixed(2)}`;
 
       // Tax Splits logic based on State POS code (29 is Karnataka local)
       if (isLocal) {
@@ -1303,6 +1407,7 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
 
     const selectedOption = invSupplyStateSelect.options[invSupplyStateSelect.selectedIndex];
+    const posState = invSupplyStateSelect.value || "Karnataka";
     const posStateCode = selectedOption ? selectedOption.getAttribute("data-code") : "29";
     const isLocal = (posStateCode === "29");
 
@@ -1318,6 +1423,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let sumSgst = 0;
     let sumIgst = 0;
 
+    const isInclusive = document.getElementById("inv-tax-inclusive")?.checked || false;
+
     for (const row of rows) {
       const select = row.querySelector(".item-product-select");
       const qtyInput = row.querySelector(".item-qty-input");
@@ -1330,11 +1437,25 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!product) continue;
 
       const qty = parseFloat(qtyInput.value) || 0;
-      const price = parseFloat(priceInput.value) || 0;
-      const taxable = qty * price;
-
+      const rawPrice = parseFloat(priceInput.value) || 0;
       const gstSelect = row.querySelector(".item-gst-select");
       const gstRate = gstSelect ? parseFloat(gstSelect.value) || 0 : 0;
+
+      let taxable = 0;
+      let unitPriceNet = rawPrice;
+      let lineTotal = 0;
+
+      if (isInclusive) {
+        const totalGross = qty * rawPrice;
+        taxable = totalGross / (1 + (gstRate / 100));
+        unitPriceNet = qty > 0 ? taxable / qty : rawPrice;
+        lineTotal = totalGross;
+      } else {
+        taxable = qty * rawPrice;
+        unitPriceNet = rawPrice;
+        lineTotal = taxable * (1 + (gstRate / 100));
+      }
+
       let cgst = 0, sgst = 0, igst = 0;
 
       if (isLocal) {
@@ -1357,13 +1478,13 @@ document.addEventListener("DOMContentLoaded", () => {
         hsn_sac_code: hsnVal !== "" ? hsnVal : null,
         quantity: qty,
         unit: unitCell.textContent,
-        unit_price: price,
+        unit_price: unitPriceNet,
         gst_rate: gstRate,
         cgst_amount: cgst,
         sgst_amount: sgst,
         igst_amount: igst,
         taxable_value: taxable,
-        total_amount: taxable + cgst + sgst + igst
+        total_amount: lineTotal
       });
     }
 
@@ -1375,8 +1496,9 @@ document.addEventListener("DOMContentLoaded", () => {
       invoice: {
         customer_id: invCustomerSelect.value,
         invoice_date: invDateInput.value,
-        place_of_supply: invSupplyStateSelect.value,
+        place_of_supply: posState,
         state_code: posStateCode,
+        online_order_number: (document.getElementById("inv-online-order-no")?.value || "").trim() || null,
         taxable_value: sumTaxable,
         cgst_amount: sumCgst,
         sgst_amount: sumSgst,
@@ -1462,15 +1584,26 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("print-cust-phone").textContent = `Phone: ${invoice.customer_phone || "—"}`;
       
       const gstinContainer = document.getElementById("print-cust-gstin-container");
+      const gstinSpan = document.getElementById("print-cust-gstin");
       if (invoice.customer_gstin && invoice.customer_gstin.trim() !== "" && invoice.customer_gstin !== "—") {
-        gstinContainer.style.display = "block";
-        document.getElementById("print-cust-gstin").textContent = invoice.customer_gstin;
+        if (gstinContainer) gstinContainer.style.display = "block";
+        if (gstinSpan) gstinSpan.textContent = invoice.customer_gstin;
       } else {
-        gstinContainer.style.display = "none";
+        if (gstinContainer) gstinContainer.style.display = "none";
       }
 
       // Populate invoice summary metadata
       document.getElementById("print-inv-number").textContent = invoice.id;
+      
+      const orderNoContainer = document.getElementById("print-inv-order-no-container");
+      const orderNoSpan = document.getElementById("print-inv-order-no");
+      if (invoice.online_order_number && invoice.online_order_number.trim() !== "") {
+        if (orderNoContainer) orderNoContainer.style.display = "block";
+        if (orderNoSpan) orderNoSpan.textContent = invoice.online_order_number;
+      } else {
+        if (orderNoContainer) orderNoContainer.style.display = "none";
+      }
+
       document.getElementById("print-inv-date").textContent = invoice.invoice_date;
       document.getElementById("print-inv-pos").textContent = `${invoice.place_of_supply} (${invoice.state_code})`;
       document.getElementById("print-notes").textContent = invoice.notes || "—";
@@ -1968,18 +2101,29 @@ document.addEventListener("DOMContentLoaded", () => {
   const selectSupState = document.getElementById("sup-state");
   const inputSupStateCode = document.getElementById("sup-state-code");
 
-  const supStateCodes = {
-    "Karnataka": "29",
-    "Maharashtra": "27",
-    "Delhi": "07",
-    "Tamil Nadu": "33",
-    "Telangana": "36"
-  };
-
   if (selectSupState && inputSupStateCode) {
     selectSupState.addEventListener("change", () => {
-      inputSupStateCode.value = supStateCodes[selectSupState.value] || "29";
+      const selectedOption = selectSupState.options[selectSupState.selectedIndex];
+      inputSupStateCode.value = selectedOption ? (selectedOption.getAttribute("data-code") || "29") : "29";
     });
+
+    const supGstinInput = document.getElementById("sup-gstin");
+    if (supGstinInput) {
+      supGstinInput.addEventListener("input", () => {
+        const val = supGstinInput.value.trim();
+        if (val.length >= 2) {
+          const parsedStateCode = val.substring(0, 2);
+          for (let i = 0; i < selectSupState.options.length; i++) {
+            const opt = selectSupState.options[i];
+            if (opt.getAttribute("data-code") === parsedStateCode) {
+              selectSupState.selectedIndex = i;
+              inputSupStateCode.value = parsedStateCode;
+              break;
+            }
+          }
+        }
+      });
+    }
   }
 
   if (btnQuickSupplier) {

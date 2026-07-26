@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import "./server";
 import { db } from "./database";
 
 describe("API Integration & UX Validation Test Suite", () => {

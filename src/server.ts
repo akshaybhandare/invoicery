@@ -462,6 +462,7 @@ const server = serve({
             invoice_date: invoice.invoice_date || new Date().toISOString().split('T')[0],
             customer_id: customerId,
             place_of_supply: placeOfSupply,
+            online_order_number: invoice.online_order_number || invoice.online_order_no || null,
             notes: invoice.notes || "Recorded via External API",
             taxable_value: totalTaxable,
             cgst_amount: totalCgst,
@@ -524,7 +525,7 @@ const server = serve({
     // --- API: First-Time Database Initialization ---
     if (url.pathname === "/api/init-db" && method === "POST") {
       try {
-        initializeDatabase();
+        reopenDatabase();
         const settings = getSettings();
         return jsonResponse({
           success: true,
@@ -799,6 +800,7 @@ const server = serve({
           // Generate next ID
           const nextInvId = getNextInvoiceNumber();
           invoice.id = nextInvId;
+          invoice.online_order_number = invoice.online_order_number || invoice.online_order_no || null;
 
           createInvoice(invoice, items);
           return jsonResponse({ success: true, id: nextInvId, message: "Invoice created successfully" }, 201);

@@ -26,6 +26,13 @@ describe("UI & UX Structural Validation Tests", () => {
       // Check for action buttons
       expect(htmlContent).toContain('id="btn-copy-api-key"');
       expect(htmlContent).toContain('id="btn-regen-api-key"');
+
+      // Check for Online Order Number, Customer GSTIN, & Tax Mode UI elements
+      expect(htmlContent).toContain('id="inv-online-order-no"');
+      expect(htmlContent).toContain('id="print-inv-order-no"');
+      expect(htmlContent).toContain('id="inv-cust-info-banner"');
+      expect(htmlContent).toContain('id="print-cust-gstin"');
+      expect(htmlContent).toContain('id="inv-tax-inclusive"');
     });
 
     test("Should NOT contain the deleted City input field", async () => {

@@ -253,6 +253,7 @@ describe("Database Path & Full CRUD & Backup Verification", () => {
           invoice_date: "2026-07-26",
           customer_id: custId,
           place_of_supply: "Karnataka",
+          online_order_number: "ORD-999888",
           notes: "CRUD test invoice",
           taxable_value: 1000.0,
           cgst_amount: 90.0,
@@ -282,6 +283,7 @@ describe("Database Path & Full CRUD & Backup Verification", () => {
       const invDetail = getInvoice(invId);
       expect(invDetail).toBeDefined();
       expect(invDetail?.invoice.grand_total).toBe(1180.0);
+      expect(invDetail?.invoice.online_order_number).toBe("ORD-999888");
 
       // Verify stock auto-deducted (100 - 5 = 95)
       const prod = db.query("SELECT current_stock FROM products WHERE id = ?;").get(prodId) as { current_stock: number };
