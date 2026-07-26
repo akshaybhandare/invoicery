@@ -1085,6 +1085,61 @@ const server = serve({
       }
     }
 
+const STATE_NAME_TO_CODE: Record<string, string> = {
+  "jammu & kashmir": "01",
+  "jammu and kashmir": "01",
+  "himachal pradesh": "02",
+  "punjab": "03",
+  "chandigarh": "04",
+  "uttarakhand": "05",
+  "haryana": "06",
+  "delhi": "07",
+  "rajasthan": "08",
+  "uttar pradesh": "09",
+  "bihar": "10",
+  "sikkim": "11",
+  "arunachal pradesh": "12",
+  "nagaland": "13",
+  "manipur": "14",
+  "mizoram": "15",
+  "tripura": "16",
+  "meghalaya": "17",
+  "west bengal": "19",
+  "jharkhand": "20",
+  "odisha": "21",
+  "chhattisgarh": "22",
+  "madhya pradesh": "23",
+  "gujarat": "24",
+  "daman & diu": "25",
+  "dadra & nagar haveli": "26",
+  "maharashtra": "27",
+  "andhra pradesh": "28",
+  "karnataka": "29",
+  "goa": "30",
+  "lakshadweep": "31",
+  "kerala": "32",
+  "tamil nadu": "33",
+  "puducherry": "34",
+  "andaman & nicobar islands": "35",
+  "telangana": "36",
+  "ladakh": "37",
+  "other territory": "97"
+};
+
+function resolveStateCode(posValue?: string | null, custGstin?: string | null): string {
+  if (custGstin && /^[0-9]{2}/.test(custGstin.trim())) {
+    return custGstin.trim().substring(0, 2);
+  }
+  if (!posValue) return "29";
+  const trimmed = posValue.trim();
+  if (/^\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const code = STATE_NAME_TO_CODE[trimmed.toLowerCase()];
+  if (code) return code;
+  return "29";
+}
+
     // --- API: GSTR-1 JSON Export ---
     if (url.pathname === "/api/reports/gstr1-json" && method === "GET") {
       try {
@@ -1118,7 +1173,7 @@ const server = serve({
             inum: inv.invoice_number,
             idt: inv.invoice_date,
             val: inv.grand_total,
-            pos: String(inv.place_of_supply || "29").padStart(2, "0"),
+            pos: resolveStateCode(inv.place_of_supply, inv.customer_gstin),
             rchrg: "N" as const,
             inv_typ: "R" as const,
             customer_name: inv.customer_name || "Consumer",

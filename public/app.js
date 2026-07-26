@@ -3553,22 +3553,23 @@ document.addEventListener("DOMContentLoaded", () => {
         const res = await fetch(url);
         const result = await res.json();
 
-        if (res.status === 422) {
-          if (gstr1ValidationErrorBox && gstr1ValidationErrorsList) {
-            gstr1ValidationErrorBox.style.display = "block";
-            const errors = result.validationErrors || [result.error];
+        if (res.status === 422 || res.status === 400 || !res.ok) {
+          const errors = result.validationErrors || [result.error || "GSTR-1 JSON generation failed."];
+          if (gstr1ValidationErrorsList) {
+            gstr1ValidationErrorsList.innerHTML = "";
             errors.forEach(err => {
               const li = document.createElement("li");
               li.textContent = err;
               gstr1ValidationErrorsList.appendChild(li);
             });
-            alert("Validation failed. Please review the errors listed at the top of the GSTR-1 panel.");
           }
+          if (gstr1ValidationErrorBox) {
+            gstr1ValidationErrorBox.style.display = "block";
+            gstr1ValidationErrorBox.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          const formattedList = errors.map(err => `• ${err}`).join("\n");
+          alert(`GSTR-1 JSON Export Failed:\n\n${formattedList}\n\nPlease update your Settings or Invoice details to fix these issues.`);
           return;
-        }
-
-        if (!res.ok) {
-          throw new Error(result.error || "Failed to generate GSTR-1 JSON.");
         }
 
         const jsonStr = JSON.stringify(result, null, 2);
