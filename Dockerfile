@@ -4,6 +4,9 @@ FROM oven/bun:1.3.14-alpine
 # Set working directory inside the container
 WORKDIR /app
 
+# Install zip and unzip utilities for backup & restore functionality
+RUN apk add --no-cache zip unzip
+
 # Copy package configuration
 COPY package.json ./
 

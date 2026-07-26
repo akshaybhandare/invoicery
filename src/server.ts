@@ -1,7 +1,7 @@
 import { serve } from "bun";
 import { spawnSync } from "node:child_process";
-import { unlinkSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { unlinkSync, existsSync, mkdirSync } from "node:fs";
+import { basename, extname, join, relative } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { 
   db,
@@ -47,6 +47,7 @@ import {
   getGstReport,
   getPaymentsLedger,
   reopenDatabase,
+  closeDatabase,
   getInvoicesForPeriod,
   getGstReportForPeriod,
   getFilingRegistersReport
@@ -62,6 +63,40 @@ const HOST = process.env.HOST || "127.0.0.1"; // Default to localhost for securi
 // Regular expression to validate Indian GSTIN format
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
+const ALLOWED_SETTINGS_KEYS = new Set([
+  "business_name",
+  "business_gstin",
+  "business_address",
+  "business_city",
+  "business_logo_path",
+  "business_state",
+  "business_state_code",
+  "invoice_prefix",
+  "invoice_next_number",
+  "purchase_next_number",
+  "api_enabled",
+  "api_key"
+]);
+
+const ALLOWED_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "application/pdf",
+  "image/webp",
+  "image/svg+xml"
+]);
+
+const ALLOWED_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".pdf",
+  ".webp",
+  ".svg"
+]);
+
+const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB limit
+
 // Helper to construct secure JSON responses
 function jsonResponse(data: any, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -71,6 +106,79 @@ function jsonResponse(data: any, status = 200) {
       "X-Content-Type-Options": "nosniff"
     }
   });
+}
+
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+interface PeriodResult {
+  fromDate: string;
+  toDate: string;
+  fp: string;
+}
+
+function parsePeriodParams(url: URL): PeriodResult {
+  const month = url.searchParams.get("month");
+  const quarter = url.searchParams.get("quarter");
+  const from = url.searchParams.get("from");
+  const to = url.searchParams.get("to");
+
+  let fromDate = "";
+  let toDate = "";
+  let fp = "";
+
+  if (month) {
+    const parts = month.split("-");
+    if (parts.length !== 2 || parts[0].length !== 4 || parts[1].length !== 2) {
+      throw new Error("Invalid month format. Expected YYYY-MM");
+    }
+    const year = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(year) || isNaN(m) || m < 1 || m > 12) {
+      throw new Error("Invalid month. Expected YYYY-MM with month between 01 and 12");
+    }
+    fromDate = `${month}-01`;
+    const endDay = new Date(year, m, 0).getDate();
+    toDate = `${month}-${String(endDay).padStart(2, "0")}`;
+    fp = `${String(m).padStart(2, "0")}${year}`;
+  } else if (quarter) {
+    const parts = quarter.split("-");
+    if (parts.length !== 2 || parts[0].length !== 4) {
+      throw new Error("Invalid quarter format. Expected YYYY-QX");
+    }
+    const year = parts[0];
+    const q = parts[1];
+    if (q === "Q1") {
+      fromDate = `${year}-01-01`;
+      toDate = `${year}-03-31`;
+      fp = `03${year}`;
+    } else if (q === "Q2") {
+      fromDate = `${year}-04-01`;
+      toDate = `${year}-06-30`;
+      fp = `06${year}`;
+    } else if (q === "Q3") {
+      fromDate = `${year}-07-01`;
+      toDate = `${year}-09-30`;
+      fp = `09${year}`;
+    } else if (q === "Q4") {
+      fromDate = `${year}-10-01`;
+      toDate = `${year}-12-31`;
+      fp = `12${year}`;
+    } else {
+      throw new Error("Invalid quarter selection. Must be Q1, Q2, Q3, or Q4");
+    }
+  } else if (from && to) {
+    if (!DATE_REGEX.test(from) || !DATE_REGEX.test(to)) {
+      throw new Error("Invalid date format. Expected YYYY-MM-DD");
+    }
+    fromDate = from;
+    toDate = to;
+    const parts = to.split("-");
+    fp = `${parts[1]}${parts[0]}`;
+  } else {
+    throw new Error("Filing period required. Pass either ?month=YYYY-MM, ?quarter=YYYY-QX, or ?from=YYYY-MM-DD&to=YYYY-MM-DD");
+  }
+
+  return { fromDate, toDate, fp };
 }
 
 const server = serve({
@@ -361,7 +469,7 @@ const server = serve({
             igst_amount: totalIgst,
             round_off: roundOff,
             grand_total: grandTotal,
-            status: invoice.status || "Draft"
+            status: invoice.status || "Confirmed"
           };
 
           createInvoice(invoicePayload, resolvedItems);
@@ -379,6 +487,11 @@ const server = serve({
     if (url.pathname === "/api/settings/save" && method === "POST") {
       try {
         const body = await req.json();
+        for (const key of Object.keys(body)) {
+          if (!ALLOWED_SETTINGS_KEYS.has(key)) {
+            return jsonResponse({ error: `Invalid setting key: ${key}` }, 400);
+          }
+        }
         for (const key of Object.keys(body)) {
           updateSetting(key, String(body[key]));
         }
@@ -895,6 +1008,20 @@ const server = serve({
         }
 
         const cleanName = basename(file.name);
+        const ext = extname(cleanName).toLowerCase();
+
+        if (!ALLOWED_EXTENSIONS.has(ext)) {
+          return jsonResponse({ error: `File extension '${ext}' is not permitted.` }, 400);
+        }
+
+        if (file.type && !ALLOWED_MIME_TYPES.has(file.type.toLowerCase())) {
+          return jsonResponse({ error: `MIME type '${file.type}' is not permitted.` }, 400);
+        }
+
+        if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+          return jsonResponse({ error: "File size exceeds maximum limit of 10 MB." }, 400);
+        }
+
         const timestamp = Date.now();
         const uniqueFilename = `${timestamp}_${cleanName}`;
         const filePath = `/attachments/${uniqueFilename}`;
@@ -935,170 +1062,34 @@ const server = serve({
     // --- API: GST Reports ---
     if (url.pathname === "/api/reports/gst" && method === "GET") {
       try {
-        let fromDate = "";
-        let toDate = "";
-
-        const month = url.searchParams.get("month");
-        const quarter = url.searchParams.get("quarter"); // YYYY-QX
-        const from = url.searchParams.get("from");
-        const to = url.searchParams.get("to");
-
-        if (month) {
-          fromDate = `${month}-01`;
-          const [year, m] = month.split("-").map(Number);
-          const endDay = new Date(year, m, 0).getDate();
-          toDate = `${month}-${String(endDay).padStart(2, "0")}`;
-        } else if (quarter) {
-          const parts = quarter.split("-");
-          if (parts.length !== 2) {
-            return jsonResponse({ error: "Invalid quarter format. Expected YYYY-QX" }, 400);
-          }
-          const year = parts[0];
-          const q = parts[1];
-          if (q === "Q1") {
-            fromDate = `${year}-01-01`;
-            toDate = `${year}-03-31`;
-          } else if (q === "Q2") {
-            fromDate = `${year}-04-01`;
-            toDate = `${year}-06-30`;
-          } else if (q === "Q3") {
-            fromDate = `${year}-07-01`;
-            toDate = `${year}-09-30`;
-          } else if (q === "Q4") {
-            fromDate = `${year}-10-01`;
-            toDate = `${year}-12-31`;
-          } else {
-            return jsonResponse({ error: "Invalid quarter. Must be Q1, Q2, Q3, or Q4" }, 400);
-          }
-        } else if (from && to) {
-          fromDate = from;
-          toDate = to;
-        } else {
-          return jsonResponse({ error: "Filing period required. Pass either ?month=YYYY-MM, ?quarter=YYYY-QX, or ?from=YYYY-MM-DD&to=YYYY-MM-DD" }, 400);
-        }
-
+        const { fromDate, toDate } = parsePeriodParams(url);
         const report = getGstReportForPeriod(fromDate, toDate);
         return jsonResponse(report);
       } catch (err: any) {
         console.error("GET GST Report error:", err);
-        return jsonResponse({ error: "Failed to compile GST report aggregates" }, 500);
+        return jsonResponse({ error: err.message || "Failed to compile GST report aggregates" }, 400);
       }
     }
 
     // --- API: Filing Registers & Period Summaries ---
     if (url.pathname === "/api/reports/registers" && method === "GET") {
       try {
-        let fromDate = "";
-        let toDate = "";
-
-        const month = url.searchParams.get("month");
-        const quarter = url.searchParams.get("quarter"); // YYYY-QX
-        const from = url.searchParams.get("from");
-        const to = url.searchParams.get("to");
-
-        if (month) {
-          fromDate = `${month}-01`;
-          const [year, m] = month.split("-").map(Number);
-          const endDay = new Date(year, m, 0).getDate();
-          toDate = `${month}-${String(endDay).padStart(2, "0")}`;
-        } else if (quarter) {
-          const parts = quarter.split("-");
-          if (parts.length !== 2) {
-            return jsonResponse({ error: "Invalid quarter format. Expected YYYY-QX" }, 400);
-          }
-          const year = parts[0];
-          const q = parts[1];
-          if (q === "Q1") {
-            fromDate = `${year}-01-01`;
-            toDate = `${year}-03-31`;
-          } else if (q === "Q2") {
-            fromDate = `${year}-04-01`;
-            toDate = `${year}-06-30`;
-          } else if (q === "Q3") {
-            fromDate = `${year}-07-01`;
-            toDate = `${year}-09-30`;
-          } else if (q === "Q4") {
-            fromDate = `${year}-10-01`;
-            toDate = `${year}-12-31`;
-          } else {
-            return jsonResponse({ error: "Invalid quarter selection." }, 400);
-          }
-        } else if (from && to) {
-          fromDate = from;
-          toDate = to;
-        } else {
-          return jsonResponse({ error: "Filing period required. Pass either ?month=YYYY-MM, ?quarter=YYYY-QX, or ?from=YYYY-MM-DD&to=YYYY-MM-DD" }, 400);
-        }
-
+        const { fromDate, toDate } = parsePeriodParams(url);
         const report = getFilingRegistersReport(fromDate, toDate);
         return jsonResponse(report);
       } catch (err: any) {
         console.error("GET Filing Registers report error:", err);
-        return jsonResponse({ error: err.message || "Failed to compile registers" }, 500);
+        return jsonResponse({ error: err.message || "Failed to compile registers" }, 400);
       }
     }
 
     // --- API: GSTR-1 JSON Export ---
     if (url.pathname === "/api/reports/gstr1-json" && method === "GET") {
       try {
-        let fromDate = "";
-        let toDate = "";
-        let fp = ""; // Return filing period MMYYYY
-
-        const month = url.searchParams.get("month");
-        const quarter = url.searchParams.get("quarter"); // YYYY-QX
-        const from = url.searchParams.get("from");
-        const to = url.searchParams.get("to");
-
-        if (month) {
-          // Format: YYYY-MM
-          fromDate = `${month}-01`;
-          const [year, m] = month.split("-").map(Number);
-          const endDay = new Date(year, m, 0).getDate();
-          toDate = `${month}-${String(endDay).padStart(2, "0")}`;
-          fp = `${String(m).padStart(2, "0")}${year}`;
-        } else if (quarter) {
-          // Format: YYYY-Q1/Q2/Q3/Q4
-          const parts = quarter.split("-");
-          if (parts.length !== 2) {
-            return jsonResponse({ error: "Invalid quarter format. Expected YYYY-QX (e.g. 2026-Q1)" }, 400);
-          }
-          const year = parts[0];
-          const q = parts[1];
-          if (q === "Q1") {
-            fromDate = `${year}-01-01`;
-            toDate = `${year}-03-31`;
-            fp = `03${year}`;
-          } else if (q === "Q2") {
-            fromDate = `${year}-04-01`;
-            toDate = `${year}-06-30`;
-            fp = `06${year}`;
-          } else if (q === "Q3") {
-            fromDate = `${year}-07-01`;
-            toDate = `${year}-09-30`;
-            fp = `09${year}`;
-          } else if (q === "Q4") {
-            fromDate = `${year}-10-01`;
-            toDate = `${year}-12-31`;
-            fp = `12${year}`;
-          } else {
-            return jsonResponse({ error: "Invalid quarter selection. Must be Q1, Q2, Q3, or Q4" }, 400);
-          }
-        } else if (from && to) {
-          // Format: YYYY-MM-DD
-          fromDate = from;
-          toDate = to;
-          const parts = to.split("-");
-          if (parts.length !== 3) {
-            return jsonResponse({ error: "Invalid date format. Expected YYYY-MM-DD" }, 400);
-          }
-          fp = `${parts[1]}${parts[0]}`;
-        } else {
-          return jsonResponse({ error: "Filing period required. Pass either ?month=YYYY-MM, ?quarter=YYYY-QX, or ?from=YYYY-MM-DD&to=YYYY-MM-DD" }, 400);
-        }
+        const { fromDate, toDate, fp } = parsePeriodParams(url);
 
         const settings = getSettings();
-        const merchantGstin = settings.biz_gst || "";
+        const merchantGstin = settings.business_gstin || settings.biz_gst || "";
         if (!merchantGstin) {
           return jsonResponse({ error: "Merchant GSTIN is not configured in Settings. Please set your GSTIN before generating returns." }, 400);
         }
@@ -1172,9 +1163,21 @@ const server = serve({
     // --- API: Backup Utility ---
     if (url.pathname === "/api/backup" && method === "GET") {
       try {
+        const backupDir = join(process.cwd(), "backups");
+        if (!existsSync(backupDir)) {
+          mkdirSync(backupDir, { recursive: true });
+        }
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const backupFilename = `invoicery_backup_${timestamp}.zip`;
+        const zipPath = join(backupDir, backupFilename);
         const relDbPath = relative(process.cwd(), dbPath);
+        const relAttachmentsPath = relative(process.cwd(), join(process.cwd(), "attachments"));
+
+        // Flush WAL frames to database file before backing up
+        try { db.run("PRAGMA wal_checkpoint(TRUNCATE);"); } catch(e) {}
+
         // Quietly zip the database and local files attachments folder recursively
-        const proc = spawnSync("zip", ["-r", "-q", zipPath, relDbPath, "attachments"]);
+        const proc = spawnSync("zip", ["-r", "-q", zipPath, relDbPath, relAttachmentsPath], { cwd: process.cwd() });
         if (proc.status !== 0) {
           throw new Error(proc.stderr?.toString() || "Failed to package database and attachments");
         }
@@ -1182,13 +1185,10 @@ const server = serve({
         const file = Bun.file(zipPath);
         const fileData = await file.arrayBuffer();
         
-        // Clean up backup zip file locally
-        try { unlinkSync(zipPath); } catch (e) {}
-        
         return new Response(fileData, {
           headers: {
             "Content-Type": "application/zip",
-            "Content-Disposition": 'attachment; filename="invoicery_backup.zip"',
+            "Content-Disposition": `attachment; filename="${backupFilename}"`,
             "Cache-Control": "no-store, no-cache, must-revalidate"
           }
         });
@@ -1211,18 +1211,21 @@ const server = serve({
         if (!file) {
           return jsonResponse({ error: "Missing backup zip file attachment" }, 400);
         }
+
+        const MAX_RESTORE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+        if (file.size > MAX_RESTORE_SIZE_BYTES) {
+          return jsonResponse({ error: "Backup file size exceeds maximum limit of 50 MB" }, 400);
+        }
         
         const restoreZipPath = "/tmp/restore_upload.zip";
         const bytes = await file.arrayBuffer();
         await writeFile(restoreZipPath, Buffer.from(bytes));
         
-        // 1. Close current db file handles
-        reopenDatabase(); // Close old instance
-        const { db } = require("./database"); // import reference
-        try { db.close(); } catch(e){}
+        // 1. Close current db file handle
+        closeDatabase();
         
         // 2. Unzip backup archive overwriting files
-        const proc = spawnSync("unzip", ["-o", "-q", restoreZipPath, "-d", "."]);
+        const proc = spawnSync("unzip", ["-o", "-q", restoreZipPath, "-d", "."], { cwd: process.cwd() });
         
         // 3. Restart SQLite connection
         reopenDatabase();

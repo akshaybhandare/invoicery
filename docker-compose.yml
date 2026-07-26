@@ -5,7 +5,13 @@ services:
     build: .
     container_name: invoicery
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     environment:
       - PORT=3000
       - HOST=0.0.0.0

@@ -2,6 +2,129 @@ import { Database } from "bun:sqlite";
 import { join, dirname } from "path";
 import { mkdirSync, existsSync, statSync } from "fs";
 
+export interface Customer {
+  id: string;
+  name: string;
+  gstin?: string | null;
+  pan?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  billing_address?: string | null;
+  shipping_address?: string | null;
+  state?: string | null;
+  state_code?: string | null;
+  country?: string | null;
+  place_of_supply?: string | null;
+  contact_person?: string | null;
+  notes?: string | null;
+}
+
+export interface Supplier {
+  id?: number;
+  name: string;
+  gstin?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  state?: string | null;
+  state_code?: string | null;
+}
+
+export interface Product {
+  id: string;
+  sku?: string | null;
+  name: string;
+  description?: string | null;
+  hsn_sac_code?: string | null;
+  gst_rate_id: number;
+  unit?: string | null;
+  purchase_price?: number;
+  selling_price?: number;
+  current_stock?: number;
+  reorder_level?: number;
+}
+
+export interface InvoiceItemPayload {
+  product_id?: string;
+  product_name: string;
+  hsn_sac_code?: string | null;
+  quantity: number;
+  unit?: string;
+  unit_price: number;
+  taxable_value: number;
+  gst_rate: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  total_amount: number;
+}
+
+export interface InvoicePayload {
+  id: string;
+  invoice_date: string;
+  customer_id: string;
+  place_of_supply?: string | null;
+  notes?: string | null;
+  taxable_value: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  round_off: number;
+  grand_total: number;
+  status?: string;
+}
+
+export interface PurchaseItemPayload {
+  product_id?: string | null;
+  quantity: number;
+  unit_price: number;
+  taxable_value: number;
+  gst_rate: number;
+  gst_amount: number;
+  total_amount: number;
+}
+
+export interface PurchasePayload {
+  id: string;
+  supplier_id: number | string;
+  supplier_invoice_number?: string | null;
+  invoice_date: string;
+  taxable_amount: number;
+  total_gst: number;
+  grand_total: number;
+  payment_status?: string;
+  paid_amount?: number;
+}
+
+export interface Expense {
+  id?: number;
+  expense_date: string;
+  vendor?: string | null;
+  category: string;
+  amount: number;
+  gst_amount?: number;
+  payment_method: string;
+  notes?: string | null;
+  attachment_path?: string | null;
+}
+
+export interface PaymentPayload {
+  invoice_number: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  reference_number?: string | null;
+  notes?: string | null;
+}
+
+export interface AttachmentPayload {
+  entity_type: string;
+  entity_id: string;
+  file_name: string;
+  file_path: string;
+  mime_type?: string | null;
+}
+
 // Initialize/open database path (defaulting to data/billing.db)
 export const dbPath = process.env.DB_PATH || join(process.cwd(), "data", "billing.db");
 
@@ -36,6 +159,9 @@ export function initializeDatabase() {
 
   realDb = new Database(dbPath, { create: true });
   realDb.run("PRAGMA foreign_keys = ON;");
+  realDb.run("PRAGMA journal_mode = WAL;");
+  realDb.run("PRAGMA synchronous = NORMAL;");
+  realDb.run("PRAGMA cache_size = -8000;");
   isDbInitialized = true;
   initSchema();
   return realDb;
@@ -64,15 +190,21 @@ if (isDatabaseFileExisting()) {
   initializeDatabase();
 }
 
-export function reopenDatabase() {
+export function closeDatabase() {
   if (realDb) {
     try {
+      realDb.run("PRAGMA wal_checkpoint(TRUNCATE);");
       realDb.close();
     } catch (e) {
-      console.error("Error closing database connection during restore:", e);
+      console.error("Error closing database:", e);
     }
     realDb = null;
   }
+  isDbInitialized = false;
+}
+
+export function reopenDatabase() {
+  closeDatabase();
   return initializeDatabase();
 }
 
@@ -88,7 +220,7 @@ export function initSchema() {
   `);
 
   // 2. GST Rates Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS gst_rates (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       rate REAL UNIQUE NOT NULL,
@@ -97,7 +229,7 @@ export function initSchema() {
   `);
 
   // 3. Customers Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS customers (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -119,7 +251,7 @@ export function initSchema() {
   `);
 
   // 4. Suppliers Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS suppliers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -134,7 +266,7 @@ export function initSchema() {
   `);
 
   // 5. Products Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY,
       sku TEXT,
@@ -153,7 +285,7 @@ export function initSchema() {
   `);
 
   // 6. Invoices Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS invoices (
       invoice_number TEXT PRIMARY KEY,
       invoice_date DATE NOT NULL,
@@ -174,7 +306,7 @@ export function initSchema() {
   `);
 
   // 7. Invoice Items Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS invoice_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       invoice_number TEXT NOT NULL REFERENCES invoices(invoice_number) ON DELETE CASCADE,
@@ -195,7 +327,7 @@ export function initSchema() {
   `);
 
   // 8. Purchases Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS purchases (
       purchase_number TEXT PRIMARY KEY,
       supplier_id INTEGER NOT NULL REFERENCES suppliers(id),
@@ -210,7 +342,7 @@ export function initSchema() {
   `);
 
   // 9. Purchase Items Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS purchase_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       purchase_number TEXT NOT NULL REFERENCES purchases(purchase_number) ON DELETE CASCADE,
@@ -225,7 +357,7 @@ export function initSchema() {
   `);
 
   // 10. Expenses Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS expenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       expense_date DATE NOT NULL,
@@ -240,7 +372,7 @@ export function initSchema() {
   `);
 
   // 11. Payments Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS payments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       direction TEXT NOT NULL CHECK (direction IN ('IN', 'OUT')),
@@ -255,7 +387,7 @@ export function initSchema() {
   `);
 
   // 12. Attachments Table
-  db.run(`
+  targetDb.run(`
     CREATE TABLE IF NOT EXISTS attachments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       entity_type TEXT NOT NULL CHECK (entity_type IN ('Purchase', 'Expense', 'Challan')),
@@ -268,7 +400,7 @@ export function initSchema() {
   `);
 
   // Seed default settings if they do not exist
-  const insertSetting = db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?);");
+  const insertSetting = targetDb.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?);");
   insertSetting.run("business_name", "My Personal Business");
   insertSetting.run("business_gstin", "");
   insertSetting.run("business_address", "Karnataka, India");
@@ -283,9 +415,9 @@ export function initSchema() {
   insertSetting.run("api_key", "");
 
   // Seed default GST rates if empty
-  const countRates = db.query("SELECT COUNT(*) as count FROM gst_rates;").get() as { count: number };
+  const countRates = targetDb.query("SELECT COUNT(*) as count FROM gst_rates;").get() as { count: number };
   if (countRates.count === 0) {
-    const insertRate = db.prepare("INSERT INTO gst_rates (rate, description) VALUES (?, ?);");
+    const insertRate = targetDb.prepare("INSERT INTO gst_rates (rate, description) VALUES (?, ?);");
     insertRate.run(0.0, "Nil Rated / Exempt");
     insertRate.run(5.0, "Standard 5% GST");
     insertRate.run(12.0, "Standard 12% GST");
@@ -295,7 +427,7 @@ export function initSchema() {
 
   // Migration: Add hsn_sac_code column to invoice_items if it doesn't exist
   try {
-    db.run("ALTER TABLE invoice_items ADD COLUMN hsn_sac_code TEXT;");
+    targetDb.run("ALTER TABLE invoice_items ADD COLUMN hsn_sac_code TEXT;");
   } catch (e) {
     // Column already exists, ignore
   }
@@ -340,7 +472,7 @@ export function searchCustomers(q: string) {
   `).all(queryPattern, queryPattern, queryPattern);
 }
 
-export function createCustomer(c: any) {
+export function createCustomer(c: Customer) {
   const stmt = db.prepare(`
     INSERT INTO customers (id, name, gstin, pan, email, phone, billing_address, shipping_address, state, state_code, place_of_supply, contact_person, notes)
     VALUES ($id, $name, $gstin, $pan, $email, $phone, $billing_address, $shipping_address, $state, $state_code, $place_of_supply, $contact_person, $notes);
@@ -362,7 +494,7 @@ export function createCustomer(c: any) {
   });
 }
 
-export function updateCustomer(id: string, c: any) {
+export function updateCustomer(id: string, c: Partial<Customer>) {
   const stmt = db.prepare(`
     UPDATE customers SET
       name = $name,
@@ -428,14 +560,14 @@ export function searchProducts(q: string) {
   `).all(queryPattern, queryPattern);
 }
 
-export function createProduct(p: any) {
+export function createProduct(p: Product) {
   const stmt = db.prepare(`
     INSERT INTO products (id, sku, name, description, hsn_sac_code, gst_rate_id, unit, purchase_price, selling_price, current_stock, reorder_level, is_active)
     VALUES ($id, $sku, $name, $description, $hsn_sac_code, $gst_rate_id, $unit, $purchase_price, $selling_price, $current_stock, $reorder_level, 1);
   `);
   return stmt.run({
-    $id: p.id,
-    $sku: p.sku || null,
+    $id: p.id || p.sku,
+    $sku: p.sku || p.id || null,
     $name: p.name,
     $description: p.description || null,
     $hsn_sac_code: p.hsn_sac_code || null,
@@ -448,7 +580,7 @@ export function createProduct(p: any) {
   });
 }
 
-export function updateProduct(id: string, p: any) {
+export function updateProduct(id: string, p: Partial<Product>) {
   const stmt = db.prepare(`
     UPDATE products SET
       sku = $sku,
@@ -477,9 +609,14 @@ export function updateProduct(id: string, p: any) {
 }
 
 export function adjustProductStock(productId: string, delta: number) {
-  db.prepare("UPDATE products SET current_stock = current_stock + ? WHERE id = ?;").run(delta, productId);
   const row = db.query("SELECT current_stock FROM products WHERE id = ?;").get(productId) as { current_stock: number } | null;
-  return row ? row.current_stock : 0.0;
+  if (!row) throw new Error(`Product ${productId} not found`);
+  const newStock = row.current_stock + delta;
+  if (newStock < 0) {
+    throw new Error(`Insufficient stock. Current stock is ${row.current_stock}, cannot deduct ${Math.abs(delta)}.`);
+  }
+  db.prepare("UPDATE products SET current_stock = ? WHERE id = ?;").run(newStock, productId);
+  return newStock;
 }
 
 export function archiveProduct(id: string) {
@@ -492,7 +629,7 @@ export function getGstRates() {
 }
 
 export function getNextCustomerId() {
-  const row = db.query("SELECT id FROM customers WHERE id LIKE 'CUST-%' ORDER BY id DESC LIMIT 1;").get() as { id: string } | null;
+  const row = db.query("SELECT id FROM customers WHERE id LIKE 'CUST-%' ORDER BY CAST(SUBSTR(id, 6) AS INTEGER) DESC LIMIT 1;").get() as { id: string } | null;
   if (!row) {
     return "CUST-000001";
   }
@@ -545,9 +682,14 @@ export function getInvoice(id: string) {
   return { invoice, items };
 }
 
-export function createInvoice(inv: any, items: any[]) {
+const DEDUCTIBLE_STATUSES = new Set(["Confirmed", "Paid", "Partially Paid"]);
+
+export function createInvoice(inv: InvoicePayload, items: InvoiceItemPayload[]) {
   // Use a transaction block to ensure atomic invoice creation and settings counter updates
   const transaction = db.transaction(() => {
+    const status = inv.status || "Draft";
+    const isStockDeducted = DEDUCTIBLE_STATUSES.has(status);
+
     // 1. Insert invoice header record
     const insertInv = db.prepare(`
       INSERT INTO invoices (invoice_number, invoice_date, customer_id, place_of_supply, notes, taxable_amount, total_cgst, total_sgst, total_igst, round_off, grand_total, status)
@@ -566,7 +708,7 @@ export function createInvoice(inv: any, items: any[]) {
       $total_igst: inv.igst_amount,
       $round_off: inv.round_off,
       $grand_total: inv.grand_total,
-      $status: inv.status || "Draft"
+      $status: status
     });
 
     // 2. Insert line items
@@ -576,8 +718,9 @@ export function createInvoice(inv: any, items: any[]) {
     `);
 
     for (const item of items) {
-      // Deduct product stock automatically
-      db.prepare("UPDATE products SET current_stock = current_stock - ? WHERE id = ?;").run(item.quantity, item.product_id);
+      if (isStockDeducted && item.product_id) {
+        db.prepare("UPDATE products SET current_stock = current_stock - ? WHERE id = ?;").run(item.quantity, item.product_id);
+      }
 
       insertItem.run({
         $invoice_number: inv.id,
@@ -597,10 +740,8 @@ export function createInvoice(inv: any, items: any[]) {
       });
     }
 
-    // 3. Update the sequence index counter
-    const currentNumRow = db.query("SELECT value FROM settings WHERE key = 'invoice_next_number';").get() as { value: string } | null;
-    const currentNum = currentNumRow ? parseInt(currentNumRow.value) : 1;
-    db.prepare("UPDATE settings SET value = ? WHERE key = 'invoice_next_number';").run(String(currentNum + 1));
+    // 3. Atomically update the sequence index counter
+    db.prepare("UPDATE settings SET value = CAST((CAST(value AS INTEGER) + 1) AS TEXT) WHERE key = 'invoice_next_number';").run();
   });
 
   return transaction();
@@ -608,10 +749,15 @@ export function createInvoice(inv: any, items: any[]) {
 
 export function deleteInvoice(id: string) {
   const transaction = db.transaction(() => {
-    // Restore product stocks first
-    const items = db.query("SELECT product_id, quantity FROM invoice_items WHERE invoice_number = ?;").all(id) as { product_id: string, quantity: number }[];
-    for (const item of items) {
-      db.prepare("UPDATE products SET current_stock = current_stock + ? WHERE id = ?;").run(item.quantity, item.product_id);
+    const invRow = db.query("SELECT status FROM invoices WHERE invoice_number = ?;").get(id) as { status: string } | null;
+    if (invRow && DEDUCTIBLE_STATUSES.has(invRow.status)) {
+      // Restore product stocks first
+      const items = db.query("SELECT product_id, quantity FROM invoice_items WHERE invoice_number = ?;").all(id) as { product_id: string, quantity: number }[];
+      for (const item of items) {
+        if (item.product_id) {
+          db.prepare("UPDATE products SET current_stock = current_stock + ? WHERE id = ?;").run(item.quantity, item.product_id);
+        }
+      }
     }
     // Delete invoice (foreign key cascades delete items)
     db.prepare("DELETE FROM invoices WHERE invoice_number = ?;").run(id);
@@ -621,12 +767,37 @@ export function deleteInvoice(id: string) {
   return transaction();
 }
 
-export function updateInvoiceStatus(id: string, status: string) {
-  const stmt = db.prepare("UPDATE invoices SET status = ? WHERE invoice_number = ?;");
-  return stmt.run(status, id);
+export function updateInvoiceStatus(id: string, newStatus: string) {
+  const transaction = db.transaction(() => {
+    const invRow = db.query("SELECT status FROM invoices WHERE invoice_number = ?;").get(id) as { status: string } | null;
+    if (!invRow) return;
+
+    const oldStatus = invRow.status;
+    const wasDeducted = DEDUCTIBLE_STATUSES.has(oldStatus);
+    const willBeDeducted = DEDUCTIBLE_STATUSES.has(newStatus);
+
+    if (!wasDeducted && willBeDeducted) {
+      const items = db.query("SELECT product_id, quantity FROM invoice_items WHERE invoice_number = ?;").all(id) as { product_id: string, quantity: number }[];
+      for (const item of items) {
+        if (item.product_id) {
+          db.prepare("UPDATE products SET current_stock = current_stock - ? WHERE id = ?;").run(item.quantity, item.product_id);
+        }
+      }
+    } else if (wasDeducted && !willBeDeducted) {
+      const items = db.query("SELECT product_id, quantity FROM invoice_items WHERE invoice_number = ?;").all(id) as { product_id: string, quantity: number }[];
+      for (const item of items) {
+        if (item.product_id) {
+          db.prepare("UPDATE products SET current_stock = current_stock + ? WHERE id = ?;").run(item.quantity, item.product_id);
+        }
+      }
+    }
+
+    db.prepare("UPDATE invoices SET status = ? WHERE invoice_number = ?;").run(newStatus, id);
+  });
+  return transaction();
 }
 
-export function recordPayment(payment: any) {
+export function recordPayment(payment: PaymentPayload) {
   const transaction = db.transaction(() => {
     // Look up customer ID (party_id) and grand_total
     const invRow = db.query("SELECT customer_id, grand_total FROM invoices WHERE invoice_number = ?;").get(payment.invoice_number) as { customer_id: string, grand_total: number } | null;
@@ -657,7 +828,7 @@ export function recordPayment(payment: any) {
     if (paid >= invRow.grand_total) {
       newStatus = "Paid";
     }
-    db.prepare("UPDATE invoices SET status = ? WHERE invoice_number = ?;").run(newStatus, payment.invoice_number);
+    updateInvoiceStatus(payment.invoice_number, newStatus);
   });
   return transaction();
 }
@@ -667,7 +838,7 @@ export function getSuppliers() {
   return db.query("SELECT * FROM suppliers ORDER BY name ASC;").all();
 }
 
-export function createSupplier(sup: any) {
+export function createSupplier(sup: Supplier) {
   const stmt = db.prepare(`
     INSERT INTO suppliers (name, gstin, phone, email, address, state, state_code)
     VALUES ($name, $gstin, $phone, $email, $address, $state, $state_code);
@@ -724,7 +895,7 @@ export function getNextPurchaseNumber() {
   return `PUR-${String(nextNum).padStart(6, "0")}`;
 }
 
-export function createPurchase(pur: any, items: any[]) {
+export function createPurchase(pur: PurchasePayload, items: PurchaseItemPayload[]) {
   const transaction = db.transaction(() => {
     // 1. Insert purchase record
     const insertPur = db.prepare(`
@@ -766,9 +937,15 @@ export function createPurchase(pur: any, items: any[]) {
       });
     }
 
-    // 3. Insert payment record if Paid or Partially Paid
-    if (pur.payment_status === 'Paid' || pur.payment_status === 'Partially Paid') {
-      const payAmount = pur.payment_status === 'Paid' ? pur.grand_total : pur.grand_total / 2; // Simple default
+    // 3. Insert payment record if Paid or Partially Paid with explicit paid_amount
+    let payAmount = 0;
+    if (typeof pur.paid_amount === "number" && pur.paid_amount > 0) {
+      payAmount = pur.paid_amount;
+    } else if (pur.payment_status === "Paid") {
+      payAmount = pur.grand_total;
+    }
+
+    if (payAmount > 0) {
       db.prepare(`
         INSERT INTO payments (direction, party_id, amount, payment_date, payment_method, notes)
         VALUES ('OUT', $party_id, $amount, $payment_date, 'Bank Transfer', $notes);
@@ -816,7 +993,7 @@ export function getExpenses() {
   `).all();
 }
 
-export function createExpense(exp: any) {
+export function createExpense(exp: Expense) {
   let insertedId: number = 0;
   const transaction = db.transaction(() => {
     const stmt = db.prepare(`
@@ -858,7 +1035,7 @@ export function deleteExpense(id: number) {
 }
 
 // --- Attachments ---
-export function createAttachment(att: any) {
+export function createAttachment(att: AttachmentPayload) {
   const stmt = db.prepare(`
     INSERT INTO attachments (entity_type, entity_id, file_name, file_path, mime_type)
     VALUES ($entity_type, $entity_id, $file_name, $file_path, $mime_type);
@@ -985,6 +1162,9 @@ export function getGstReport(monthStr: string) {
 }
 
 export function getGstReportForPeriod(fromDate: string, toDate: string) {
+  const settings = getSettings();
+  const merchantStateCode = settings.business_state_code || "29";
+
   // GSTR-1: Outward Supplies B2B (With GSTIN)
   const gstr1b2b = db.query(`
     SELECT i.invoice_number, i.invoice_date, c.name as customer_name, c.gstin as customer_gstin, 
@@ -1033,13 +1213,13 @@ export function getGstReportForPeriod(fromDate: string, toDate: string) {
   // GSTR-3B: Input Tax Credit (ITC) from Purchases
   const gstr3bPurchaseItc = db.query(`
     SELECT 
-      COALESCE(SUM(CASE WHEN s.state_code = '29' THEN p.total_gst / 2.0 ELSE 0.0 END), 0.0) as cgst_credit,
-      COALESCE(SUM(CASE WHEN s.state_code = '29' THEN p.total_gst / 2.0 ELSE 0.0 END), 0.0) as sgst_credit,
-      COALESCE(SUM(CASE WHEN s.state_code != '29' THEN p.total_gst ELSE 0.0 END), 0.0) as igst_credit
+      COALESCE(SUM(CASE WHEN s.state_code = ? THEN p.total_gst / 2.0 ELSE 0.0 END), 0.0) as cgst_credit,
+      COALESCE(SUM(CASE WHEN s.state_code = ? THEN p.total_gst / 2.0 ELSE 0.0 END), 0.0) as sgst_credit,
+      COALESCE(SUM(CASE WHEN s.state_code != ? THEN p.total_gst ELSE 0.0 END), 0.0) as igst_credit
     FROM purchases p
     LEFT JOIN suppliers s ON p.supplier_id = s.id
     WHERE p.invoice_date BETWEEN ? AND ?;
-  `).get(fromDate, toDate) as { cgst_credit: number, sgst_credit: number, igst_credit: number };
+  `).get(merchantStateCode, merchantStateCode, merchantStateCode, fromDate, toDate) as { cgst_credit: number, sgst_credit: number, igst_credit: number };
 
   // GSTR-3B: Input Tax Credit (ITC) from Expenses
   const gstr3bExpenseItc = db.query(`
@@ -1077,7 +1257,7 @@ export function getPaymentsLedger() {
   return db.query(`
     SELECT p.*,
            CASE 
-             WHEN p.direction = 'IN' THEN COALESCE((SELECT name FROM customers WHERE id = CAST(p.party_id AS INTEGER)), 'Customer ID ' || p.party_id)
+             WHEN p.direction = 'IN' THEN COALESCE((SELECT name FROM customers WHERE id = p.party_id), 'Customer ID ' || p.party_id)
              WHEN p.direction = 'OUT' AND p.party_id = 'EXPENSE' THEN 'Operating Expense outflow'
              WHEN p.direction = 'OUT' THEN COALESCE((SELECT name FROM suppliers WHERE id = CAST(p.party_id AS INTEGER)), 'Supplier ID ' || p.party_id)
              ELSE 'General Transaction'
@@ -1111,6 +1291,8 @@ export function getInvoicesForPeriod(fromDate: string, toDate: string) {
 
 // --- Comprehensive Tax Registers & filing Reports ---
 export function getFilingRegistersReport(fromDate: string, toDate: string) {
+  const settings = getSettings();
+  const merchantStateCode = settings.business_state_code || "29";
   const yearStr = fromDate.substring(0, 4);
 
   // 1. Sales Register
@@ -1167,15 +1349,15 @@ export function getFilingRegistersReport(fromDate: string, toDate: string) {
   const rateSummaryPurchases = db.query(`
     SELECT pi.gst_rate,
            SUM(pi.taxable_value) as purchase_taxable,
-           SUM(CASE WHEN s.state_code = '29' THEN pi.line_total - pi.taxable_value ELSE 0.0 END) / 2.0 as purchase_cgst,
-           SUM(CASE WHEN s.state_code = '29' THEN pi.line_total - pi.taxable_value ELSE 0.0 END) / 2.0 as purchase_sgst,
-           SUM(CASE WHEN s.state_code != '29' THEN pi.line_total - pi.taxable_value ELSE 0.0 END) as purchase_igst
+           SUM(CASE WHEN s.state_code = ? THEN pi.line_total - pi.taxable_value ELSE 0.0 END) / 2.0 as purchase_cgst,
+           SUM(CASE WHEN s.state_code = ? THEN pi.line_total - pi.taxable_value ELSE 0.0 END) / 2.0 as purchase_sgst,
+           SUM(CASE WHEN s.state_code != ? THEN pi.line_total - pi.taxable_value ELSE 0.0 END) as purchase_igst
     FROM purchase_items pi
     LEFT JOIN purchases p ON pi.purchase_number = p.purchase_number
     LEFT JOIN suppliers s ON p.supplier_id = s.id
     WHERE p.invoice_date BETWEEN ? AND ?
     GROUP BY pi.gst_rate;
-  `).all(fromDate, toDate);
+  `).all(merchantStateCode, merchantStateCode, merchantStateCode, fromDate, toDate);
 
   // 6. Monthly Summary for the current calendar year of the query
   const monthlySummary = [];
@@ -1238,6 +1420,8 @@ export function getFilingRegistersReport(fromDate: string, toDate: string) {
 
 // --- Derived GSTR-3B filing Calculator ---
 export function getGstr3bFilingSummary(fromDate: string, toDate: string) {
+  const settings = getSettings();
+  const merchantStateCode = settings.business_state_code || "29";
   // 1. Table 3.1: Outward Supplies Details
   // (a) Taxable Outward Supplies (other than zero-rated, nil-rated, exempted)
   const salesTaxable = db.query(`
@@ -1281,13 +1465,13 @@ export function getGstr3bFilingSummary(fromDate: string, toDate: string) {
   // (A)(5) All Other ITC: Total regular purchases + regular expenses (except blocked fuel)
   const regularPurchases = db.query(`
     SELECT 
-      COALESCE(SUM(CASE WHEN s.state_code = '29' THEN p.total_gst / 2.0 ELSE 0.0 END), 0.0) as cgst,
-      COALESCE(SUM(CASE WHEN s.state_code = '29' THEN p.total_gst / 2.0 ELSE 0.0 END), 0.0) as sgst,
-      COALESCE(SUM(CASE WHEN s.state_code != '29' AND s.state_code != '97' THEN p.total_gst ELSE 0.0 END), 0.0) as igst
+      COALESCE(SUM(CASE WHEN s.state_code = ? THEN p.total_gst / 2.0 ELSE 0.0 END), 0.0) as cgst,
+      COALESCE(SUM(CASE WHEN s.state_code = ? THEN p.total_gst / 2.0 ELSE 0.0 END), 0.0) as sgst,
+      COALESCE(SUM(CASE WHEN s.state_code != ? AND s.state_code != '97' THEN p.total_gst ELSE 0.0 END), 0.0) as igst
     FROM purchases p
     LEFT JOIN suppliers s ON p.supplier_id = s.id
     WHERE p.invoice_date BETWEEN ? AND ? AND (s.state_code != '97' AND s.name NOT LIKE '%Import%');
-  `).get(fromDate, toDate) as any;
+  `).get(merchantStateCode, merchantStateCode, merchantStateCode, fromDate, toDate) as any;
 
   // Eligible Expenses ITC (excluding Fuel category which is blocked under 17(5))
   const regularExpenses = db.query(`

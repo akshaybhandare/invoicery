@@ -6,6 +6,7 @@ import {
   initializeDatabase,
   getSettings,
   updateSetting,
+  closeDatabase,
   reopenDatabase
 } from "./database";
 
@@ -51,6 +52,7 @@ describe("Backup & Restore Integration Verification", () => {
 
     // Write a unique value into settings to backup
     updateSetting("test_restore_marker", "RESTORED_SECRET_8899");
+    db.run("PRAGMA wal_checkpoint(TRUNCATE);");
 
     // Package database into zip archive
     const { spawnSync } = require("node:child_process");
@@ -62,8 +64,7 @@ describe("Backup & Restore Integration Verification", () => {
     updateSetting("test_restore_marker", "CORRUPTED_VALUE");
 
     // Perform restore procedure: close db, extract zip, reopen db
-    reopenDatabase();
-    db.close();
+    closeDatabase();
 
     const procUnzip = spawnSync("unzip", ["-o", "-q", zipPath, "-d", "."]);
     expect(procUnzip.status).toBe(0);

@@ -338,15 +338,30 @@ export function generateGstr1(input: Gstr1Input): { success: boolean; json?: any
   if (invoices.length > 0) {
     // Sort invoices to find sequence boundaries
     const sorted = [...invoices].sort((a, b) => a.inum.localeCompare(b.inum));
+    const firstNum = sorted[0].inum;
+    const lastNum = sorted[sorted.length - 1].inum;
+    let cancelCount = 0;
+    
+    const firstMatch = firstNum.match(/(\d+)$/);
+    const lastMatch = lastNum.match(/(\d+)$/);
+    if (firstMatch && lastMatch) {
+      const startSeq = parseInt(firstMatch[1], 10);
+      const endSeq = parseInt(lastMatch[1], 10);
+      const totalSpan = endSeq - startSeq + 1;
+      if (totalSpan >= invoices.length) {
+        cancelCount = totalSpan - invoices.length;
+      }
+    }
+
     doc_issue.doc_det.push({
-      doc_num: 1, // 1 represents invoices for outward supply
+      doc_num: 1, // Outward supply invoices
       docs: [
         {
           num: 1,
-          from: sorted[0].inum,
-          to: sorted[sorted.length - 1].inum,
-          totnum: invoices.length,
-          cancel: 0,
+          from: firstNum,
+          to: lastNum,
+          totnum: invoices.length + cancelCount,
+          cancel: cancelCount,
           net_issue: invoices.length
         }
       ]
@@ -359,7 +374,7 @@ export function generateGstr1(input: Gstr1Input): { success: boolean; json?: any
     fp: input.fp,
     gt: input.gt || 0,
     cur_gt: input.cur_gt || 0,
-    version: "INVOICERY" // Set default version branding for Invoicery
+    version: "GST3.0.4" // Official GSTN offline utility schema version
   };
 
   if (b2b.length > 0) resultJson.b2b = b2b;

@@ -15,6 +15,9 @@ billing.db-shm
 # Attachments directory (contains user uploads)
 attachments/
 
+# Local backups directory
+backups/
+
 # macOS system files
 .DS_Store
 Thumbs.db

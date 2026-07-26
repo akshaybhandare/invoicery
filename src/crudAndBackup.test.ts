@@ -260,7 +260,7 @@ describe("Database Path & Full CRUD & Backup Verification", () => {
           igst_amount: 0.0,
           round_off: 0.0,
           grand_total: 1180.0,
-          status: "Draft"
+          status: "Confirmed"
         },
         [
           {
