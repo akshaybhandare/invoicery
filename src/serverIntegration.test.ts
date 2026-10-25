@@ -414,4 +414,149 @@ describe("API Integration & UX Validation Test Suite", () => {
       expect(json.error).toContain("already exists");
     });
   });
+
+  // =========================================================================
+  // 6. Invoices PUT (Edit) and Dynamic Signature API Verification
+  // =========================================================================
+  describe("Invoice Edit API & Dynamic Signature Settings", () => {
+    test("Save and retrieve dynamic signature settings", async () => {
+      const saveRes = await fetch(`${BASE_URL}/api/settings/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          business_signature: "Jane Doe Signatory",
+          business_signature_path: "/attachments/test_sig.png",
+          gst_enabled: "false"
+        })
+      });
+      expect(saveRes.status).toBe(200);
+      const saveJson = await saveRes.json();
+      expect(saveJson.success).toBe(true);
+      expect(saveJson.settings.business_signature).toBe("Jane Doe Signatory");
+      expect(saveJson.settings.business_signature_path).toBe("/attachments/test_sig.png");
+      expect(saveJson.settings.gst_enabled).toBe("false");
+
+      // Verify status check returns the new dynamic signature settings
+      const statusRes = await fetch(`${BASE_URL}/api/status`);
+      expect(statusRes.status).toBe(200);
+      const statusJson = await statusRes.json();
+      expect(statusJson.settings.business_signature).toBe("Jane Doe Signatory");
+      expect(statusJson.settings.business_signature_path).toBe("/attachments/test_sig.png");
+      expect(statusJson.settings.gst_enabled).toBe("false");
+    });
+
+    test("PUT /api/invoices should update existing invoice", async () => {
+      // 1. Create a test invoice first via POST /api/invoices
+      const createRes = await fetch(`${BASE_URL}/api/invoices`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoice: {
+            customer_id: "TEST-CUST-INTRA",
+            invoice_date: "2026-08-01",
+            place_of_supply: "Karnataka",
+            state_code: "29",
+            online_order_number: "ORD-INITIAL",
+            taxable_value: 1000.0,
+            cgst_amount: 90.0,
+            sgst_amount: 90.0,
+            igst_amount: 0.0,
+            round_off: 0.0,
+            grand_total: 1180.0,
+            notes: "Initial note",
+            status: "Confirmed"
+          },
+          items: [
+            {
+              product_id: "TEST-PROD-18",
+              product_name: "Test 18% Product",
+              quantity: 1,
+              unit: "PCS",
+              unit_price: 1000.0,
+              taxable_value: 1000.0,
+              gst_rate: 18.0,
+              cgst_amount: 90.0,
+              sgst_amount: 90.0,
+              igst_amount: 0.0,
+              total_amount: 1180.0
+            }
+          ]
+        })
+      });
+      expect(createRes.status).toBe(201);
+      const createJson = await createRes.json();
+      const testInvId = createJson.id;
+      expect(testInvId).toBeDefined();
+
+      // 2. Update the invoice via PUT /api/invoices
+      const updateRes = await fetch(`${BASE_URL}/api/invoices`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoice: {
+            id: testInvId,
+            customer_id: "TEST-CUST-INTRA",
+            invoice_date: "2026-08-02",
+            place_of_supply: "Karnataka",
+            state_code: "29",
+            online_order_number: "ORD-EDITED-SUCCESS",
+            taxable_value: 2000.0,
+            cgst_amount: 180.0,
+            sgst_amount: 180.0,
+            igst_amount: 0.0,
+            round_off: 0.0,
+            grand_total: 2360.0,
+            notes: "Edited note successfully",
+            status: "Confirmed"
+          },
+          items: [
+            {
+              product_id: "TEST-PROD-18",
+              product_name: "Test 18% Product",
+              quantity: 2,
+              unit: "PCS",
+              unit_price: 1000.0,
+              taxable_value: 2000.0,
+              gst_rate: 18.0,
+              cgst_amount: 180.0,
+              sgst_amount: 180.0,
+              igst_amount: 0.0,
+              total_amount: 2360.0
+            }
+          ]
+        })
+      });
+      expect(updateRes.status).toBe(200);
+      const updateJson = await updateRes.json();
+      expect(updateJson.success).toBe(true);
+
+      // 3. Verify changes reflected via GET /api/invoices/detail
+      const detailRes = await fetch(`${BASE_URL}/api/invoices/detail?id=${testInvId}`);
+      expect(detailRes.status).toBe(200);
+      const detailJson = await detailRes.json();
+      expect(detailJson.invoice.online_order_number).toBe("ORD-EDITED-SUCCESS");
+      expect(detailJson.invoice.invoice_date).toBe("2026-08-02");
+      expect(detailJson.invoice.grand_total).toBe(2360.0);
+      expect(detailJson.invoice.notes).toBe("Edited note successfully");
+      expect(detailJson.items.length).toBe(1);
+      expect(detailJson.items[0].quantity).toBe(2);
+
+      // 4. Clean up test invoice
+      await fetch(`${BASE_URL}/api/invoices?id=${testInvId}`, { method: "DELETE" });
+    });
+
+    test("PUT /api/invoices should fail when required fields are missing", async () => {
+      const response = await fetch(`${BASE_URL}/api/invoices`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoice: { customer_id: "TEST-CUST-INTRA" }, // Missing id, date, and items
+          items: []
+        })
+      });
+      expect(response.status).toBe(400);
+      const json = await response.json();
+      expect(json.error).toContain("Missing required invoice fields");
+    });
+  });
 });

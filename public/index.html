@@ -1054,8 +1054,12 @@
                 <input type="text" id="set-biz-name" placeholder="Enter Company Name">
               </div>
               <div class="form-group">
-                <label for="set-biz-gst">GSTIN *</label>
+                <label for="set-biz-gst">GSTIN</label>
                 <input type="text" id="set-biz-gst" placeholder="e.g. 29AAAAA0000A1Z1">
+              </div>
+              <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 24px;">
+                <input type="checkbox" id="set-gst-enabled" checked style="width: auto; margin: 0; cursor: pointer;">
+                <label for="set-gst-enabled" style="margin-bottom: 0; font-weight: 500; cursor: pointer;">Enable GST Billing & Tax Breakdown</label>
               </div>
               <div class="form-group">
                 <label for="set-biz-state">Registered State</label>
@@ -1069,6 +1073,10 @@
               <div class="form-group">
                 <label for="set-biz-address">Address</label>
                 <input type="text" id="set-biz-address" placeholder="Enter registered business address">
+              </div>
+              <div class="form-group">
+                <label for="set-biz-signature">Authorized Signatory / Signature</label>
+                <input type="text" id="set-biz-signature" placeholder="e.g. John Doe">
               </div>
             </div>
 
@@ -1086,6 +1094,26 @@
                 <button type="button" class="btn btn-secondary-pill" id="btn-remove-logo" style="margin-left: 8px; display: none; background: #c5221f; color: white; border: none;">REMOVE</button>
                 <p style="font-size: 10px; color: #777; margin-top: 8px;">Upload PNG or JPG image (recommended: square format with light background).</p>
                 <input type="hidden" id="set-biz-logo-path" value="">
+              </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1.5px dotted #ccc; margin-top: 24px; margin-bottom: 20px;">
+
+            <h3 class="card-title">DIGITAL SIGNATURE IMAGE</h3>
+            <p style="font-size: 12px; color: rgba(7, 6, 7, 0.7); margin-bottom: 12px;">
+              Upload an official signature image or stamp to appear on printed invoices. If not provided, your signature name above will be rendered dynamically in script font.
+            </p>
+            <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+              <div style="width: 160px; height: 80px; border: 2px dashed #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center; background-color: #f9f9f9; overflow: hidden; position: relative;">
+                <img id="set-signature-preview" style="max-width: 100%; max-height: 100%; object-fit: contain; display: none;" />
+                <span id="set-signature-placeholder" style="font-size: 11px; color: #777; text-align: center; padding: 8px;">No Signature Uploaded</span>
+              </div>
+              <div>
+                <input type="file" id="set-signature-file" accept="image/*" style="display: none;">
+                <button type="button" class="btn btn-secondary-pill" onclick="document.getElementById('set-signature-file').click()">SELECT SIGNATURE IMAGE</button>
+                <button type="button" class="btn btn-secondary-pill" id="btn-remove-signature" style="margin-left: 8px; display: none; background: #c5221f; color: white; border: none;">REMOVE</button>
+                <p style="font-size: 10px; color: #777; margin-top: 8px;">Upload transparent PNG or JPG image of signature.</p>
+                <input type="hidden" id="set-biz-signature-path" value="">
               </div>
             </div>
 
@@ -1447,7 +1475,7 @@
         </div>
 
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary-pill">SAVE & CONFIRM INVOICE</button>
+          <button type="submit" class="btn btn-primary-pill" id="btn-save-invoice">SAVE & CONFIRM INVOICE</button>
           <button type="button" class="btn btn-secondary-pill" id="btn-cancel-invoice">CANCEL</button>
         </div>
       </form>
@@ -1459,6 +1487,8 @@
     <div class="modal-card" style="max-width: 900px; width: 95%; background-color: #ffffff; padding: 48px; border-radius: 0; color: #000000; font-family: 'DM Sans', sans-serif;">
       <!-- Action Toolbar (hidden during physical print) -->
       <div class="print-actions-toolbar" style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 24px; border-bottom: 1.5px dotted #000000; padding-bottom: 16px;">
+        <button class="btn btn-secondary-pill" id="btn-edit-print-invoice" style="border-radius: var(--radius-buttons); padding: 8px 20px; font-size: 14px;">✏️ EDIT INVOICE</button>
+        <button class="btn btn-secondary-pill" id="btn-share-pdf" style="border-radius: var(--radius-buttons); padding: 8px 20px; font-size: 14px;">📤 SHARE PDF</button>
         <button class="btn btn-primary-pill" id="btn-trigger-print" style="padding: 8px 20px; font-size: 14px;">🖨️ PRINT INVOICE</button>
         <button class="btn btn-secondary-pill" id="btn-close-print" style="border-radius: var(--radius-buttons); padding: 8px 20px; font-size: 14px;">CLOSE</button>
       </div>
@@ -1472,12 +1502,12 @@
             <div>
               <h2 id="print-biz-name" style="font-family: inherit; font-size: 20px; font-weight: bold; text-transform: uppercase; margin: 0;">MY BUSINESS</h2>
               <p id="print-biz-address" style="font-size: 12px; color: #333; margin: 4px 0 0 0; line-height: 1.4;">Registered Address Line</p>
-              <p style="font-size: 12px; font-weight: bold; margin: 4px 0 0 0;">GSTIN: <span id="print-biz-gstin">29AAAAA0000A1Z5</span></p>
+              <p id="print-biz-gstin-container" style="font-size: 12px; font-weight: bold; margin: 4px 0 0 0;">GSTIN: <span id="print-biz-gstin">29AAAAA0000A1Z5</span></p>
               <p style="font-size: 12px; margin: 4px 0 0 0;" id="print-biz-state-label">State: Karnataka (29)</p>
             </div>
           </div>
           <div style="text-align: right;">
-            <h1 style="font-family: inherit; font-size: 32px; font-weight: bold; letter-spacing: -0.5px; margin: 0; color: #000000;">TAX INVOICE</h1>
+            <h1 id="print-invoice-title" style="font-family: inherit; font-size: 32px; font-weight: bold; letter-spacing: -0.5px; margin: 0; color: #000000;">TAX INVOICE</h1>
             <p style="font-size: 14px; font-weight: bold; margin-top: 12px;">Invoice No: <span id="print-inv-number">INV-000001</span></p>
             <p style="font-size: 13px;" id="print-inv-order-no-container">Online Order No: <span id="print-inv-order-no" style="font-weight: bold;">—</span></p>
             <p style="font-size: 13px;">Date: <span id="print-inv-date">24-Jul-2026</span></p>
@@ -1591,7 +1621,8 @@
           </div>
           <div>
             <p id="print-biz-sign-label" style="font-weight: bold; margin-bottom: 5px;">For MY BUSINESS</p>
-            <div id="print-digital-sig" style="font-family: 'Alex Brush', cursive; font-size: 32px; height: 35px; line-height: 35px; color: #000000; padding-bottom: 5px;">Akshay Bhandare</div>
+            <div id="print-digital-sig" style="font-family: 'Alex Brush', cursive; font-size: 32px; height: 35px; line-height: 35px; color: #000000; padding-bottom: 5px;"></div>
+            <img id="print-signature-img" style="max-height: 45px; max-width: 180px; object-fit: contain; margin: 0 auto; display: none;" />
             <p style="border-top: 1px solid #000000; width: 200px; margin: 5px auto 0; padding-top: 6px;">Authorized Signature</p>
           </div>
         </div>
@@ -1909,6 +1940,7 @@
     </div>
   </div>
 
+  <script src="/html2pdf.bundle.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

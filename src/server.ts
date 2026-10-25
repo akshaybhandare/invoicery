@@ -29,6 +29,7 @@ import {
   getInvoices,
   getInvoice,
   createInvoice,
+  updateInvoice,
   deleteInvoice,
   updateInvoiceStatus,
   recordPayment,
@@ -75,7 +76,10 @@ const ALLOWED_SETTINGS_KEYS = new Set([
   "invoice_next_number",
   "purchase_next_number",
   "api_enabled",
-  "api_key"
+  "api_key",
+  "business_signature",
+  "business_signature_path",
+  "gst_enabled"
 ]);
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -209,6 +213,14 @@ const server = serve({
           }
         });
       }
+      if (url.pathname === "/html2pdf.bundle.min.js") {
+        return new Response(Bun.file("./public/html2pdf.bundle.min.js"), {
+          headers: { 
+            "Content-Type": "application/javascript",
+            "X-Content-Type-Options": "nosniff"
+          }
+        });
+      }
       if (url.pathname === "/logo.jpg") {
         return new Response(Bun.file("./public/logo.jpg"), {
           headers: { 
@@ -218,8 +230,17 @@ const server = serve({
         });
       }
       if (url.pathname.startsWith("/attachments/")) {
-        const filename = basename(url.pathname);
-        return new Response(Bun.file(join("./attachments", filename)));
+        try {
+          const decodedPath = decodeURIComponent(url.pathname);
+          const filename = basename(decodedPath);
+          const file = Bun.file(join("./attachments", filename));
+          if (await file.exists()) {
+            return new Response(file);
+          }
+          return new Response("Not Found", { status: 404 });
+        } catch {
+          return new Response("Bad Request", { status: 400 });
+        }
       }
     }
 
@@ -810,7 +831,27 @@ const server = serve({
         }
       }
 
-      // 3. DELETE Invoice
+      // 3. PUT Update Invoice
+      if (method === "PUT") {
+        try {
+          const body = await req.json();
+          const { invoice, items } = body;
+
+          if (!invoice || !invoice.id || !invoice.customer_id || !invoice.invoice_date || !items || !Array.isArray(items) || items.length === 0) {
+            return jsonResponse({ error: "Missing required invoice fields or line items" }, 400);
+          }
+
+          invoice.online_order_number = invoice.online_order_number || invoice.online_order_no || null;
+
+          updateInvoice(invoice, items);
+          return jsonResponse({ success: true, id: invoice.id, message: "Invoice updated successfully" });
+        } catch (err: any) {
+          console.error("PUT Invoice error:", err);
+          return jsonResponse({ error: err.message || "Failed to update invoice" }, 500);
+        }
+      }
+
+      // 4. DELETE Invoice
       if (method === "DELETE") {
         try {
           const id = url.searchParams.get("id");
@@ -1009,7 +1050,7 @@ const server = serve({
           return jsonResponse({ error: "Missing required upload parameters: file, entity_type, entity_id" }, 400);
         }
 
-        const cleanName = basename(file.name);
+        const cleanName = basename(file.name).replace(/\s+/g, "_");
         const ext = extname(cleanName).toLowerCase();
 
         if (!ALLOWED_EXTENSIONS.has(ext)) {
@@ -1032,8 +1073,8 @@ const server = serve({
         const bytes = await file.arrayBuffer();
         await writeFile(absolutePath, Buffer.from(bytes));
 
-        // Insert attachment link details if not logo
-        if (entityType !== "logo") {
+        // Insert attachment link details if not logo or signature
+        if (entityType !== "logo" && entityType !== "signature") {
           createAttachment({
             entity_type: entityType,
             entity_id: entityId,
