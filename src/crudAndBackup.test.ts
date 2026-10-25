@@ -16,6 +16,7 @@ import {
   createSupplier,
   getSuppliers,
   createInvoice,
+  updateInvoice,
   getInvoice,
   getInvoices,
   deleteInvoice,
@@ -290,10 +291,58 @@ describe("Database Path & Full CRUD & Backup Verification", () => {
       expect(prod.current_stock).toBe(95.0);
     });
 
+    test("Update Invoice & Stock Adjustment", () => {
+      updateInvoice(
+        {
+          id: invId,
+          invoice_date: "2026-07-27",
+          customer_id: custId,
+          place_of_supply: "Maharashtra",
+          online_order_number: "ORD-MODIFIED",
+          notes: "Updated CRUD test invoice",
+          taxable_value: 400.0,
+          cgst_amount: 0.0,
+          sgst_amount: 0.0,
+          igst_amount: 72.0,
+          round_off: 0.0,
+          grand_total: 472.0,
+          status: "Confirmed"
+        },
+        [
+          {
+            product_id: prodId,
+            product_name: "Invoice Test Item",
+            quantity: 2,
+            unit: "PCS",
+            unit_price: 200.0,
+            taxable_value: 400.0,
+            gst_rate: 18.0,
+            cgst_amount: 0.0,
+            sgst_amount: 0.0,
+            igst_amount: 72.0,
+            total_amount: 472.0
+          }
+        ]
+      );
+
+      const invDetail = getInvoice(invId);
+      expect(invDetail).toBeDefined();
+      expect(invDetail?.invoice.grand_total).toBe(472.0);
+      expect(invDetail?.invoice.online_order_number).toBe("ORD-MODIFIED");
+      expect(invDetail?.invoice.place_of_supply).toBe("Maharashtra");
+      expect(invDetail?.invoice.invoice_date).toBe("2026-07-27");
+      expect(invDetail?.items.length).toBe(1);
+      expect(invDetail?.items[0].quantity).toBe(2);
+
+      // Verify stock adjusted: was 95 (100 - 5), now should be 98 (100 - 2)
+      const prod = db.query("SELECT current_stock FROM products WHERE id = ?;").get(prodId) as { current_stock: number };
+      expect(prod.current_stock).toBe(98.0);
+    });
+
     test("Record Payment & Update Invoice Status", () => {
       recordPayment({
         invoice_number: invId,
-        amount: 1180.0,
+        amount: 472.0,
         payment_date: "2026-07-26",
         payment_method: "UPI",
         reference_number: "UPI123456",
@@ -302,7 +351,7 @@ describe("Database Path & Full CRUD & Backup Verification", () => {
 
       const invDetail = getInvoice(invId);
       expect(invDetail?.invoice.status).toBe("Paid");
-      expect(invDetail?.invoice.paid_amount).toBe(1180.0);
+      expect(invDetail?.invoice.paid_amount).toBe(472.0);
     });
 
     test("Delete Invoice & Restore Stock", () => {
@@ -310,7 +359,7 @@ describe("Database Path & Full CRUD & Backup Verification", () => {
       const invDetail = getInvoice(invId);
       expect(invDetail).toBeNull();
 
-      // Verify stock restored (95 + 5 = 100)
+      // Verify stock restored (98 + 2 = 100)
       const prod = db.query("SELECT current_stock FROM products WHERE id = ?;").get(prodId) as { current_stock: number };
       expect(prod.current_stock).toBe(100.0);
 

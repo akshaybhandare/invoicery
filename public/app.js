@@ -65,6 +65,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const setBizGst = document.getElementById("set-biz-gst");
   const setBizState = document.getElementById("set-biz-state");
   const setBizStateCode = document.getElementById("set-biz-state-code");
+  const setBizSignature = document.getElementById("set-biz-signature");
+  const setBizSignaturePath = document.getElementById("set-biz-signature-path");
 
   if (setBizState && setBizStateCode) {
     setBizState.addEventListener("change", () => {
@@ -314,10 +316,16 @@ document.addEventListener("DOMContentLoaded", () => {
           openModal("modal-init-db");
         }
         if (data.settings) {
+          cachedSettings = data.settings || {};
           setBizName.value = data.settings.business_name || "";
           setBizGst.value = data.settings.business_gstin || "";
+          const setGstEnabled = document.getElementById("set-gst-enabled");
+          if (setGstEnabled) {
+            setGstEnabled.checked = data.settings.gst_enabled !== "false";
+          }
           setBizState.value = data.settings.business_state || "";
           setBizStateCode.value = data.settings.business_state_code || "";
+          if (setBizSignature) setBizSignature.value = data.settings.business_signature || "";
           
           const setBizAddress = document.getElementById("set-biz-address");
           if (setBizAddress) setBizAddress.value = data.settings.business_address || "";
@@ -326,6 +334,10 @@ document.addEventListener("DOMContentLoaded", () => {
           const setBizLogoPath = document.getElementById("set-biz-logo-path");
           if (setBizLogoPath) setBizLogoPath.value = logoPath;
           updateLogoPreviewUI(logoPath);
+
+          const sigPath = data.settings.business_signature_path || "";
+          if (setBizSignaturePath) setBizSignaturePath.value = sigPath;
+          updateSignaturePreviewUI(sigPath);
 
           const apiEnabled = data.settings.api_enabled === "true";
           const setApiEnabled = document.getElementById("set-api-enabled");
@@ -913,6 +925,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Print Modal elements
   const btnTriggerPrint = document.getElementById("btn-trigger-print");
   const btnClosePrint = document.getElementById("btn-close-print");
+  const btnEditPrintInvoice = document.getElementById("btn-edit-print-invoice");
+  const btnSharePdf = document.getElementById("btn-share-pdf");
+  let currentPrintInvoiceId = null;
 
   let cachedCustomers = [];
   let cachedProducts = [];
@@ -931,6 +946,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
   cacheSystemSettings();
+
+  // Helper: check whether GST is actively configured in settings
+  function isGstActive(settings = cachedSettings) {
+    if (!settings) return false;
+    if (settings.gst_enabled === "false" || settings.gst_enabled === false) {
+      return false;
+    }
+    const gstin = settings.business_gstin;
+    return Boolean(gstin && gstin.trim() !== "" && gstin.trim().toUpperCase() !== "NOT CONFIGURED");
+  }
 
   // Load Invoices List
   async function fetchInvoices() {
@@ -1013,6 +1038,13 @@ document.addEventListener("DOMContentLoaded", () => {
             tdActions.appendChild(btnPay);
           }
           
+          const btnEdit = document.createElement("button");
+          btnEdit.className = "btn-small edit";
+          btnEdit.textContent = "EDIT";
+          btnEdit.style.marginRight = "6px";
+          btnEdit.addEventListener("click", () => openEditInvoiceModal(inv.id));
+          tdActions.appendChild(btnEdit);
+
           const btnPrint = document.createElement("button");
           btnPrint.className = "btn-small edit";
           btnPrint.textContent = "PRINT";
@@ -1050,8 +1082,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  let editingInvoiceId = null;
+
   // Open invoice creation editor modal
   async function openNewInvoiceModal() {
+    editingInvoiceId = null;
+    const titleEl = document.getElementById("invoice-editor-title");
+    if (titleEl) titleEl.textContent = "NEW SALES INVOICE";
+    const btnSave = document.getElementById("btn-save-invoice");
+    if (btnSave) btnSave.textContent = "SAVE & CONFIRM INVOICE";
+
     // Set loading indicator
     document.getElementById("inv-id-display").value = "INV-XXXXXX (GENERATING...)";
     invoiceEditorItemsList.innerHTML = "";
@@ -1103,11 +1143,93 @@ document.addEventListener("DOMContentLoaded", () => {
     openModal("invoice-editor-modal");
   }
 
+  // Open invoice editor modal for existing invoice
+  async function openEditInvoiceModal(id) {
+    try {
+      editingInvoiceId = id;
+      const titleEl = document.getElementById("invoice-editor-title");
+      if (titleEl) titleEl.textContent = `EDIT SALES INVOICE (${id})`;
+      const btnSave = document.getElementById("btn-save-invoice");
+      if (btnSave) btnSave.textContent = "UPDATE INVOICE";
+
+      document.getElementById("inv-id-display").value = id;
+      invoiceEditorItemsList.innerHTML = "";
+
+      await loadInvoiceDropdownCaches();
+
+      const res = await fetch(`/api/invoices/detail?id=${encodeURIComponent(id)}`);
+      if (!res.ok) throw new Error("Failed to fetch invoice details for editing");
+      const { invoice, items } = await res.json();
+
+      // Populate customer dropdown
+      invCustomerSelect.innerHTML = '<option value="" disabled>CHOOSE CUSTOMER...</option>';
+      let customerExistsInCache = false;
+      cachedCustomers.forEach(cust => {
+        const opt = document.createElement("option");
+        opt.value = cust.id;
+        opt.textContent = `${cust.name} (${cust.id})${cust.gstin ? ' - GSTIN: ' + cust.gstin : ''}`;
+        if (cust.id === invoice.customer_id) {
+          opt.selected = true;
+          customerExistsInCache = true;
+        }
+        invCustomerSelect.appendChild(opt);
+      });
+
+      if (!customerExistsInCache && invoice.customer_id) {
+        const opt = document.createElement("option");
+        opt.value = invoice.customer_id;
+        opt.textContent = `${invoice.customer_name || invoice.customer_id} (${invoice.customer_id})`;
+        opt.selected = true;
+        invCustomerSelect.appendChild(opt);
+      }
+      invCustomerSelect.value = invoice.customer_id;
+
+      // Populate metadata fields
+      invDateInput.value = invoice.invoice_date || "";
+      invSupplyStateSelect.value = invoice.place_of_supply || "Karnataka";
+      const onlineOrderNoInput = document.getElementById("inv-online-order-no");
+      if (onlineOrderNoInput) onlineOrderNoInput.value = invoice.online_order_number || "";
+      const notesInput = document.getElementById("inv-notes");
+      if (notesInput) notesInput.value = invoice.notes || "";
+      const taxInclusiveCheck = document.getElementById("inv-tax-inclusive");
+      if (taxInclusiveCheck) taxInclusiveCheck.checked = false;
+
+      // Customer banner
+      const banner = document.getElementById("inv-cust-info-banner");
+      if (banner) {
+        banner.style.display = "block";
+        const gstinEl = document.getElementById("inv-cust-gstin-display");
+        const addrEl = document.getElementById("inv-cust-address-display");
+        if (gstinEl) gstinEl.textContent = (invoice.customer_gstin && invoice.customer_gstin.trim() !== "" && invoice.customer_gstin !== "—") ? invoice.customer_gstin : "—";
+        if (addrEl) addrEl.textContent = invoice.customer_billing_address || "No address provided";
+      }
+
+      // Populate line items
+      if (items && items.length > 0) {
+        items.forEach(item => {
+          addInvoiceItemRow(item);
+        });
+      } else {
+        addInvoiceItemRow();
+      }
+
+      recalculateInvoice();
+      openModal("invoice-editor-modal");
+    } catch (err) {
+      alert("Error loading invoice for editing: " + err.message);
+    }
+  }
+
   if (btnCreateInvoice) btnCreateInvoice.addEventListener("click", openNewInvoiceModal);
   if (btnQuickInvoice) btnQuickInvoice.addEventListener("click", openNewInvoiceModal);
 
   btnCancelInvoice.addEventListener("click", () => {
     closeModal("invoice-editor-modal");
+    editingInvoiceId = null;
+    const titleEl = document.getElementById("invoice-editor-title");
+    if (titleEl) titleEl.textContent = "NEW SALES INVOICE";
+    const btnSave = document.getElementById("btn-save-invoice");
+    if (btnSave) btnSave.textContent = "SAVE & CONFIRM INVOICE";
   });
 
   // Auto Place of Supply and Customer details banner update on customer selection
@@ -1140,7 +1262,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Add Item Row to Grid
-  function addInvoiceItemRow() {
+  function addInvoiceItemRow(initialItem = null) {
     const tr = document.createElement("tr");
 
     // Product selector dropdown
@@ -1152,12 +1274,30 @@ document.addEventListener("DOMContentLoaded", () => {
     select.required = true;
     
     select.innerHTML = '<option value="" disabled selected>SELECT PRODUCT...</option>';
+    let itemFoundInCache = false;
     cachedProducts.forEach(p => {
       const opt = document.createElement("option");
       opt.value = p.id;
       opt.textContent = p.name;
+      if (initialItem && initialItem.product_id === p.id) {
+        opt.selected = true;
+        itemFoundInCache = true;
+      }
       select.appendChild(opt);
     });
+
+    if (initialItem && initialItem.product_id && !itemFoundInCache) {
+      const opt = document.createElement("option");
+      opt.value = initialItem.product_id;
+      opt.textContent = initialItem.product_name || initialItem.product_id;
+      opt.selected = true;
+      select.appendChild(opt);
+    }
+
+    if (initialItem && initialItem.product_id) {
+      select.value = initialItem.product_id;
+    }
+
     tdProd.appendChild(select);
     tr.appendChild(tdProd);
 
@@ -1171,7 +1311,7 @@ document.addEventListener("DOMContentLoaded", () => {
     inputHsn.style.borderRadius = "var(--radius-small)";
     inputHsn.style.border = "1.5px solid var(--color-obsidian)";
     inputHsn.style.width = "90px";
-    inputHsn.value = "";
+    inputHsn.value = initialItem ? (initialItem.hsn_sac_code || "") : "";
     tdHsn.appendChild(inputHsn);
     tr.appendChild(tdHsn);
 
@@ -1185,7 +1325,7 @@ document.addEventListener("DOMContentLoaded", () => {
     inputQty.style.border = "1.5px solid var(--color-obsidian)";
     inputQty.min = "0.01";
     inputQty.step = "any";
-    inputQty.value = "1";
+    inputQty.value = initialItem ? String(initialItem.quantity) : "1";
     inputQty.required = true;
     tdQty.appendChild(inputQty);
 
@@ -1200,7 +1340,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Unit display
     const tdUnit = document.createElement("td");
     tdUnit.className = "item-unit-cell";
-    tdUnit.textContent = "PCS";
+    tdUnit.textContent = initialItem ? (initialItem.unit || "PCS") : "PCS";
     tr.appendChild(tdUnit);
 
     // Price Input
@@ -1213,7 +1353,7 @@ document.addEventListener("DOMContentLoaded", () => {
     inputPrice.style.border = "1.5px solid var(--color-obsidian)";
     inputPrice.min = "0.00";
     inputPrice.step = "0.01";
-    inputPrice.value = "0.00";
+    inputPrice.value = initialItem ? parseFloat(initialItem.unit_price).toFixed(2) : "0.00";
     inputPrice.required = true;
     tdPrice.appendChild(inputPrice);
     tr.appendChild(tdPrice);
@@ -1233,13 +1373,17 @@ document.addEventListener("DOMContentLoaded", () => {
       <option value="18">18%</option>
       <option value="28">28%</option>
     `;
+    if (initialItem && initialItem.gst_rate !== undefined) {
+      selectGst.value = String(initialItem.gst_rate);
+      tr.dataset.gstRate = initialItem.gst_rate;
+    }
     tdRate.appendChild(selectGst);
     tr.appendChild(tdRate);
 
     // Taxable value total column
     const tdTaxable = document.createElement("td");
     tdTaxable.className = "item-taxable-val-cell";
-    tdTaxable.textContent = "₹0.00";
+    tdTaxable.textContent = initialItem ? `₹${parseFloat(initialItem.taxable_value).toFixed(2)}` : "₹0.00";
     tdTaxable.style.fontWeight = "bold";
     tr.appendChild(tdTaxable);
 
@@ -1269,7 +1413,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       const qty = parseFloat(inputQty.value) || 0;
       const available = parseFloat(product.current_stock) || 0;
-      if (qty > available) {
+      if (qty > available && !editingInvoiceId) {
         stockWarning.style.color = "#c5221f";
         stockWarning.style.fontWeight = "bold";
         stockWarning.textContent = `⚠️ Insufficient stock! Only ${available} ${product.unit || 'PCS'} available.`;
@@ -1320,7 +1464,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     invoiceEditorItemsList.appendChild(tr);
-    select.focus();
+    if (!initialItem) {
+      select.focus();
+    }
   }
 
   btnAddInvoiceLine.addEventListener("click", () => {
@@ -1511,16 +1657,22 @@ document.addEventListener("DOMContentLoaded", () => {
       items: itemsPayload
     };
 
+    if (editingInvoiceId) {
+      invoicePayload.invoice.id = editingInvoiceId;
+    }
+
     try {
+      const isEdit = Boolean(editingInvoiceId);
       const response = await fetch("/api/invoices", {
-        method: "POST",
+        method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(invoicePayload)
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Failed to submit invoice");
+      if (!response.ok) throw new Error(result.error || `Failed to ${isEdit ? "update" : "submit"} invoice`);
 
       closeModal("invoice-editor-modal");
+      editingInvoiceId = null;
       fetchInvoices();
     } catch (error) {
       alert(`Submission Error: ${error.message}`);
@@ -1545,6 +1697,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- 8. Print Layout Preview Management (A4 formatting & GSTR matching) ---
   async function openPrintInvoice(id) {
     try {
+      currentPrintInvoiceId = id;
+      if (!cachedSettings || Object.keys(cachedSettings).length === 0) {
+        await cacheSystemSettings();
+      }
+      const hasGst = isGstActive();
+
       const response = await fetch(`/api/invoices/detail?id=${id}`);
       if (!response.ok) throw new Error("Failed to fetch invoice details");
       const { invoice, items } = await response.json();
@@ -1557,13 +1715,49 @@ document.addEventListener("DOMContentLoaded", () => {
       if (cachedSettings.business_city) addressParts.push(cachedSettings.business_city);
       document.getElementById("print-biz-address").textContent = addressParts.join(", ") || "Karnataka, India";
       
-      document.getElementById("print-biz-gstin").textContent = cachedSettings.business_gstin || "NOT CONFIGURED";
+      const bizGstinContainer = document.getElementById("print-biz-gstin-container");
+      const bizGstinSpan = document.getElementById("print-biz-gstin");
+      if (hasGst) {
+        if (bizGstinContainer) bizGstinContainer.style.display = "";
+        if (bizGstinSpan) bizGstinSpan.textContent = cachedSettings.business_gstin;
+      } else {
+        if (bizGstinContainer) bizGstinContainer.style.display = "none";
+      }
+
+      const printTitle = document.getElementById("print-invoice-title");
+      if (printTitle) {
+        printTitle.textContent = hasGst ? "TAX INVOICE" : "INVOICE";
+      }
+
       document.getElementById("print-biz-sign-label").textContent = `For ${cachedSettings.business_name || "MY BUSINESS"}`;
+
+      const printSigImg = document.getElementById("print-signature-img");
+      const printSigDiv = document.getElementById("print-digital-sig");
+      if (cachedSettings.business_signature_path) {
+        if (printSigImg) {
+          const sigPath = cachedSettings.business_signature_path;
+          printSigImg.src = sigPath.startsWith("/") ? sigPath : `/${sigPath}`;
+          printSigImg.style.display = "block";
+        }
+        if (printSigDiv) {
+          printSigDiv.style.display = "none";
+        }
+      } else {
+        if (printSigImg) {
+          printSigImg.src = "";
+          printSigImg.style.display = "none";
+        }
+        if (printSigDiv) {
+          printSigDiv.style.display = "block";
+          printSigDiv.textContent = cachedSettings.business_signature || cachedSettings.business_name || "Authorized Signatory";
+        }
+      }
       
       const printLogo = document.getElementById("print-biz-logo");
       if (printLogo) {
         if (cachedSettings.business_logo_path) {
-          printLogo.src = cachedSettings.business_logo_path;
+          const logoPath = cachedSettings.business_logo_path;
+          printLogo.src = logoPath.startsWith("/") ? logoPath : `/${logoPath}`;
           printLogo.style.display = "block";
         } else {
           printLogo.src = "";
@@ -1608,13 +1802,17 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("print-inv-pos").textContent = `${invoice.place_of_supply} (${invoice.state_code})`;
       document.getElementById("print-notes").textContent = invoice.notes || "—";
 
-      // Toggle printed table header columns based on supply type
+      // Toggle printed table header columns based on supply type and GST active status
       const isLocal = (invoice.state_code === "29");
       const cgstCols = document.querySelectorAll(".print-col-cgst");
       const sgstCols = document.querySelectorAll(".print-col-sgst");
       const igstCols = document.querySelectorAll(".print-col-igst");
 
-      if (isLocal) {
+      if (!hasGst) {
+        cgstCols.forEach(el => el.style.display = "none");
+        sgstCols.forEach(el => el.style.display = "none");
+        igstCols.forEach(el => el.style.display = "none");
+      } else if (isLocal) {
         cgstCols.forEach(el => el.style.display = "");
         sgstCols.forEach(el => el.style.display = "");
         igstCols.forEach(el => el.style.display = "none");
@@ -1693,7 +1891,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tdCr.style.padding = "8px";
         tdCr.style.borderRight = "1px solid #000000";
         tdCr.style.borderBottom = "1px solid #000000";
-        if (!isLocal) tdCr.style.display = "none";
+        if (!hasGst || !isLocal) tdCr.style.display = "none";
         tr.appendChild(tdCr);
 
         const tdCa = document.createElement("td");
@@ -1703,7 +1901,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tdCa.style.padding = "8px";
         tdCa.style.borderRight = "1px solid #000000";
         tdCa.style.borderBottom = "1px solid #000000";
-        if (!isLocal) tdCa.style.display = "none";
+        if (!hasGst || !isLocal) tdCa.style.display = "none";
         tr.appendChild(tdCa);
 
         // SGST Rate & Amount
@@ -1714,7 +1912,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tdSr.style.padding = "8px";
         tdSr.style.borderRight = "1px solid #000000";
         tdSr.style.borderBottom = "1px solid #000000";
-        if (!isLocal) tdSr.style.display = "none";
+        if (!hasGst || !isLocal) tdSr.style.display = "none";
         tr.appendChild(tdSr);
 
         const tdSa = document.createElement("td");
@@ -1724,7 +1922,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tdSa.style.padding = "8px";
         tdSa.style.borderRight = "1px solid #000000";
         tdSa.style.borderBottom = "1px solid #000000";
-        if (!isLocal) tdSa.style.display = "none";
+        if (!hasGst || !isLocal) tdSa.style.display = "none";
         tr.appendChild(tdSa);
 
         // IGST Rate & Amount
@@ -1735,7 +1933,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tdIr.style.padding = "8px";
         tdIr.style.borderRight = "1px solid #000000";
         tdIr.style.borderBottom = "1px solid #000000";
-        if (isLocal) tdIr.style.display = "none";
+        if (!hasGst || isLocal) tdIr.style.display = "none";
         tr.appendChild(tdIr);
 
         const tdIa = document.createElement("td");
@@ -1745,7 +1943,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tdIa.style.padding = "8px";
         tdIa.style.borderRight = "1px solid #000000";
         tdIa.style.borderBottom = "1px solid #000000";
-        if (isLocal) tdIa.style.display = "none";
+        if (!hasGst || isLocal) tdIa.style.display = "none";
         tr.appendChild(tdIa);
 
         // Total Amount
@@ -1830,7 +2028,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tdCrSum.style.padding = "8px";
       tdCrSum.style.borderRight = "1px solid #000000";
       tdCrSum.style.borderBottom = "1px solid #000000";
-      if (!isLocal) tdCrSum.style.display = "none";
+      if (!hasGst || !isLocal) tdCrSum.style.display = "none";
       trSum.appendChild(tdCrSum);
 
       // 9. CGST Amount Sum
@@ -1841,7 +2039,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tdCaSum.style.padding = "8px";
       tdCaSum.style.borderRight = "1px solid #000000";
       tdCaSum.style.borderBottom = "1px solid #000000";
-      if (!isLocal) tdCaSum.style.display = "none";
+      if (!hasGst || !isLocal) tdCaSum.style.display = "none";
       trSum.appendChild(tdCaSum);
 
       // 10. SGST Rate
@@ -1851,7 +2049,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tdSrSum.style.padding = "8px";
       tdSrSum.style.borderRight = "1px solid #000000";
       tdSrSum.style.borderBottom = "1px solid #000000";
-      if (!isLocal) tdSrSum.style.display = "none";
+      if (!hasGst || !isLocal) tdSrSum.style.display = "none";
       trSum.appendChild(tdSrSum);
 
       // 11. SGST Amount Sum
@@ -1862,7 +2060,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tdSaSum.style.padding = "8px";
       tdSaSum.style.borderRight = "1px solid #000000";
       tdSaSum.style.borderBottom = "1px solid #000000";
-      if (!isLocal) tdSaSum.style.display = "none";
+      if (!hasGst || !isLocal) tdSaSum.style.display = "none";
       trSum.appendChild(tdSaSum);
 
       // 12. IGST Rate
@@ -1872,7 +2070,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tdIrSum.style.padding = "8px";
       tdIrSum.style.borderRight = "1px solid #000000";
       tdIrSum.style.borderBottom = "1px solid #000000";
-      if (isLocal) tdIrSum.style.display = "none";
+      if (!hasGst || isLocal) tdIrSum.style.display = "none";
       trSum.appendChild(tdIrSum);
 
       // 13. IGST Amount Sum
@@ -1883,7 +2081,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tdIaSum.style.padding = "8px";
       tdIaSum.style.borderRight = "1px solid #000000";
       tdIaSum.style.borderBottom = "1px solid #000000";
-      if (isLocal) tdIaSum.style.display = "none";
+      if (!hasGst || isLocal) tdIaSum.style.display = "none";
       trSum.appendChild(tdIaSum);
 
       // 14. Total Amount Sum
@@ -1910,121 +2108,140 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("print-summary-paid").textContent = `₹${printPaidVal.toFixed(2)}`;
       document.getElementById("print-summary-due").textContent = `₹${printDueVal.toFixed(2)}`;
 
-      // Toggle display of CGST/SGST/IGST in printed invoice based on locale
-      if (isLocal) {
-        document.getElementById("print-row-cgst").style.display = "flex";
-        document.getElementById("print-row-sgst").style.display = "flex";
-        document.getElementById("print-row-igst").style.display = "none";
+      // Toggle display of CGST/SGST/IGST in printed invoice based on GST configuration and locale
+      const rowCgst = document.getElementById("print-row-cgst");
+      const rowSgst = document.getElementById("print-row-sgst");
+      const rowIgst = document.getElementById("print-row-igst");
+      if (!hasGst) {
+        if (rowCgst) rowCgst.style.display = "none";
+        if (rowSgst) rowSgst.style.display = "none";
+        if (rowIgst) rowIgst.style.display = "none";
+      } else if (isLocal) {
+        if (rowCgst) rowCgst.style.display = "flex";
+        if (rowSgst) rowSgst.style.display = "flex";
+        if (rowIgst) rowIgst.style.display = "none";
       } else {
-        document.getElementById("print-row-cgst").style.display = "none";
-        document.getElementById("print-row-sgst").style.display = "none";
-        document.getElementById("print-row-igst").style.display = "flex";
+        if (rowCgst) rowCgst.style.display = "none";
+        if (rowSgst) rowSgst.style.display = "none";
+        if (rowIgst) rowIgst.style.display = "flex";
       }
 
-      // Generate HSN Tax Summary table rows dynamically
-      const hsnSummaryMap = {};
-      items.forEach(item => {
-        const hsn = item.hsn_sac_code || "N/A";
-        if (!hsnSummaryMap[hsn]) {
-          hsnSummaryMap[hsn] = {
-            taxableValue: 0,
-            gstRate: item.gst_rate,
-            cgst: 0,
-            sgst: 0,
-            igst: 0,
-            totalTax: 0
-          };
-        }
-        hsnSummaryMap[hsn].taxableValue += item.taxable_value;
-        hsnSummaryMap[hsn].cgst += item.cgst_amount;
-        hsnSummaryMap[hsn].sgst += item.sgst_amount;
-        hsnSummaryMap[hsn].igst += item.igst_amount;
-        hsnSummaryMap[hsn].totalTax += (item.cgst_amount + item.sgst_amount + item.igst_amount);
-      });
+      // Toggle HSN Tax Summary table based on GST active status
+      const hsnHeading = document.getElementById("print-hsn-heading");
+      const hsnTable = document.getElementById("print-hsn-table");
 
-      const hsnTbody = document.getElementById("print-hsn-summary-list");
-      hsnTbody.innerHTML = "";
-      Object.keys(hsnSummaryMap).forEach(hsn => {
-        const data = hsnSummaryMap[hsn];
-        const tr = document.createElement("tr");
+      if (!hasGst) {
+        if (hsnHeading) hsnHeading.style.display = "none";
+        if (hsnTable) hsnTable.style.display = "none";
+      } else {
+        if (hsnHeading) hsnHeading.style.display = "";
+        if (hsnTable) hsnTable.style.display = "";
 
-        const tdH = document.createElement("td");
-        tdH.textContent = hsn;
-        tdH.style.padding = "6px";
-        tdH.style.borderRight = "1px solid #000000";
-        tdH.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdH);
+        // Generate HSN Tax Summary table rows dynamically
+        const hsnSummaryMap = {};
+        items.forEach(item => {
+          const hsn = item.hsn_sac_code || "N/A";
+          if (!hsnSummaryMap[hsn]) {
+            hsnSummaryMap[hsn] = {
+              taxableValue: 0,
+              gstRate: item.gst_rate,
+              cgst: 0,
+              sgst: 0,
+              igst: 0,
+              totalTax: 0
+            };
+          }
+          hsnSummaryMap[hsn].taxableValue += item.taxable_value;
+          hsnSummaryMap[hsn].cgst += item.cgst_amount;
+          hsnSummaryMap[hsn].sgst += item.sgst_amount;
+          hsnSummaryMap[hsn].igst += item.igst_amount;
+          hsnSummaryMap[hsn].totalTax += (item.cgst_amount + item.sgst_amount + item.igst_amount);
+        });
 
-        const tdV = document.createElement("td");
-        tdV.textContent = data.taxableValue.toFixed(2);
-        tdV.style.textAlign = "right";
-        tdV.style.padding = "6px";
-        tdV.style.borderRight = "1px solid #000000";
-        tdV.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdV);
+        const hsnTbody = document.getElementById("print-hsn-summary-list");
+        hsnTbody.innerHTML = "";
+        Object.keys(hsnSummaryMap).forEach(hsn => {
+          const data = hsnSummaryMap[hsn];
+          const tr = document.createElement("tr");
 
-        // CGST rate & amount
-        const tdCr = document.createElement("td");
-        tdCr.textContent = isLocal ? `${(data.gstRate / 2)}%` : "0%";
-        tdCr.style.textAlign = "center";
-        tdCr.style.padding = "6px";
-        tdCr.style.borderRight = "1px solid #000000";
-        tdCr.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdCr);
+          const tdH = document.createElement("td");
+          tdH.textContent = hsn;
+          tdH.style.padding = "6px";
+          tdH.style.borderRight = "1px solid #000000";
+          tdH.style.borderBottom = "1px solid #000000";
+          tr.appendChild(tdH);
 
-        const tdCa = document.createElement("td");
-        tdCa.textContent = data.cgst.toFixed(2);
-        tdCa.style.textAlign = "right";
-        tdCa.style.padding = "6px";
-        tdCa.style.borderRight = "1px solid #000000";
-        tdCa.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdCa);
+          const tdV = document.createElement("td");
+          tdV.textContent = data.taxableValue.toFixed(2);
+          tdV.style.textAlign = "right";
+          tdV.style.padding = "6px";
+          tdV.style.borderRight = "1px solid #000000";
+          tdV.style.borderBottom = "1px solid #000000";
+          tr.appendChild(tdV);
 
-        // SGST rate & amount
-        const tdSr = document.createElement("td");
-        tdSr.textContent = isLocal ? `${(data.gstRate / 2)}%` : "0%";
-        tdSr.style.textAlign = "center";
-        tdSr.style.padding = "6px";
-        tdSr.style.borderRight = "1px solid #000000";
-        tdSr.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdSr);
+          // CGST rate & amount
+          const tdCr = document.createElement("td");
+          tdCr.textContent = isLocal ? `${(data.gstRate / 2)}%` : "0%";
+          tdCr.style.textAlign = "center";
+          tdCr.style.padding = "6px";
+          tdCr.style.borderRight = "1px solid #000000";
+          tdCr.style.borderBottom = "1px solid #000000";
+          tr.appendChild(tdCr);
 
-        const tdSa = document.createElement("td");
-        tdSa.textContent = data.sgst.toFixed(2);
-        tdSa.style.textAlign = "right";
-        tdSa.style.padding = "6px";
-        tdSa.style.borderRight = "1px solid #000000";
-        tdSa.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdSa);
+          const tdCa = document.createElement("td");
+          tdCa.textContent = data.cgst.toFixed(2);
+          tdCa.style.textAlign = "right";
+          tdCa.style.padding = "6px";
+          tdCa.style.borderRight = "1px solid #000000";
+          tdCa.style.borderBottom = "1px solid #000000";
+          tr.appendChild(tdCa);
 
-        // IGST rate & amount
-        const tdIr = document.createElement("td");
-        tdIr.textContent = !isLocal ? `${data.gstRate}%` : "0%";
-        tdIr.style.textAlign = "center";
-        tdIr.style.padding = "6px";
-        tdIr.style.borderRight = "1px solid #000000";
-        tdIr.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdIr);
+          // SGST rate & amount
+          const tdSr = document.createElement("td");
+          tdSr.textContent = isLocal ? `${(data.gstRate / 2)}%` : "0%";
+          tdSr.style.textAlign = "center";
+          tdSr.style.padding = "6px";
+          tdSr.style.borderRight = "1px solid #000000";
+          tdSr.style.borderBottom = "1px solid #000000";
+          tr.appendChild(tdSr);
 
-        const tdIa = document.createElement("td");
-        tdIa.textContent = data.igst.toFixed(2);
-        tdIa.style.textAlign = "right";
-        tdIa.style.padding = "6px";
-        tdIa.style.borderRight = "1px solid #000000";
-        tdIa.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdIa);
+          const tdSa = document.createElement("td");
+          tdSa.textContent = data.sgst.toFixed(2);
+          tdSa.style.textAlign = "right";
+          tdSa.style.padding = "6px";
+          tdSa.style.borderRight = "1px solid #000000";
+          tdSa.style.borderBottom = "1px solid #000000";
+          tr.appendChild(tdSa);
 
-        // Total tax amount
-        const tdTa = document.createElement("td");
-        tdTa.textContent = data.totalTax.toFixed(2);
-        tdTa.style.textAlign = "right";
-        tdTa.style.padding = "6px";
-        tdTa.style.borderRight = "1px solid #000000";
-        tdTa.style.borderBottom = "1px solid #000000";
-        tr.appendChild(tdTa);
+          // IGST rate & amount
+          const tdIr = document.createElement("td");
+          tdIr.textContent = !isLocal ? `${data.gstRate}%` : "0%";
+          tdIr.style.textAlign = "center";
+          tdIr.style.padding = "6px";
+          tdIr.style.borderRight = "1px solid #000000";
+          tdIr.style.borderBottom = "1px solid #000000";
+          tr.appendChild(tdIr);
 
-        hsnTbody.appendChild(tr);
-      });
+          const tdIa = document.createElement("td");
+          tdIa.textContent = data.igst.toFixed(2);
+          tdIa.style.textAlign = "right";
+          tdIa.style.padding = "6px";
+          tdIa.style.borderRight = "1px solid #000000";
+          tdIa.style.borderBottom = "1px solid #000000";
+          tr.appendChild(tdIa);
+
+          // Total tax amount
+          const tdTa = document.createElement("td");
+          tdTa.textContent = data.totalTax.toFixed(2);
+          tdTa.style.textAlign = "right";
+          tdTa.style.padding = "6px";
+          tdTa.style.borderRight = "1px solid #000000";
+          tdTa.style.borderBottom = "1px solid #000000";
+          tr.appendChild(tdTa);
+
+          hsnTbody.appendChild(tr);
+        });
+      }
 
 
       openModal("invoice-print-modal");
@@ -2041,6 +2258,78 @@ document.addEventListener("DOMContentLoaded", () => {
   btnClosePrint.addEventListener("click", () => {
     closeModal("invoice-print-modal");
   });
+
+  if (btnEditPrintInvoice) {
+    btnEditPrintInvoice.addEventListener("click", () => {
+      closeModal("invoice-print-modal");
+      if (currentPrintInvoiceId) {
+        openEditInvoiceModal(currentPrintInvoiceId);
+      }
+    });
+  }
+
+  // Share PDF button handler — Web Share API with auto-download fallback
+  if (btnSharePdf) {
+    btnSharePdf.addEventListener("click", async () => {
+      const originalText = btnSharePdf.textContent;
+      const invNumber = document.getElementById("print-inv-number")?.textContent.trim() || "INVOICE";
+      const filename = `${invNumber}.pdf`;
+      const printArea = document.getElementById("print-area");
+
+      if (!printArea) return;
+
+      try {
+        btnSharePdf.textContent = "⏳ GENERATING PDF...";
+        btnSharePdf.disabled = true;
+
+        if (typeof html2pdf === "undefined") {
+          // Fallback to window.print() if html2pdf is unavailable
+          alert("PDF generator library is unavailable. Opening standard print dialog to Save or Share as PDF.");
+          window.print();
+          return;
+        }
+
+        const opt = {
+          margin: [8, 8, 8, 8],
+          filename: filename,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+        };
+
+        const pdfBlob = await html2pdf().set(opt).from(printArea).outputPdf("blob");
+        const pdfFile = new File([pdfBlob], filename, { type: "application/pdf" });
+
+        const shareData = {
+          title: `Invoice ${invNumber}`,
+          text: `Invoice ${invNumber} from ${cachedSettings.business_name || "My Business"}`,
+          files: [pdfFile]
+        };
+
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+          await navigator.share(shareData);
+        } else {
+          // Native fallback: automatically download the generated PDF
+          const downloadUrl = URL.createObjectURL(pdfBlob);
+          const downloadLink = document.createElement("a");
+          downloadLink.href = downloadUrl;
+          downloadLink.download = filename;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          setTimeout(() => URL.revokeObjectURL(downloadUrl), 2000);
+        }
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.error("Share PDF error:", err);
+          alert(`Failed to share PDF: ${err.message}`);
+        }
+      } finally {
+        btnSharePdf.textContent = originalText;
+        btnSharePdf.disabled = false;
+      }
+    });
+  }
 
   // --- Record Payment Modal Controllers ---
   const paymentModal = document.getElementById("payment-modal");
@@ -3797,7 +4086,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!preview || !placeholder || !removeBtn) return;
     
     if (logoPath) {
-      preview.src = logoPath;
+      preview.src = logoPath.startsWith("/") ? logoPath : `/${logoPath}`;
       preview.style.display = "block";
       placeholder.style.display = "none";
       removeBtn.style.display = "inline-block";
@@ -3849,6 +4138,67 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // --- Settings Signature Handlers ---
+  function updateSignaturePreviewUI(sigPath) {
+    const preview = document.getElementById("set-signature-preview");
+    const placeholder = document.getElementById("set-signature-placeholder");
+    const removeBtn = document.getElementById("btn-remove-signature");
+    
+    if (!preview || !placeholder || !removeBtn) return;
+    
+    if (sigPath) {
+      preview.src = sigPath.startsWith("/") ? sigPath : `/${sigPath}`;
+      preview.style.display = "block";
+      placeholder.style.display = "none";
+      removeBtn.style.display = "inline-block";
+    } else {
+      preview.src = "";
+      preview.style.display = "none";
+      placeholder.style.display = "block";
+      removeBtn.style.display = "none";
+    }
+  }
+
+  const setSignatureFileInput = document.getElementById("set-signature-file");
+  if (setSignatureFileInput) {
+    setSignatureFileInput.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("entity_type", "signature");
+      formData.append("entity_id", "business");
+      
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData
+        });
+        if (!res.ok) throw new Error("Signature upload failed");
+        const data = await res.json();
+        if (data.file_path) {
+          const setBizSignaturePath = document.getElementById("set-biz-signature-path");
+          if (setBizSignaturePath) setBizSignaturePath.value = data.file_path;
+          updateSignaturePreviewUI(data.file_path);
+        }
+      } catch (err) {
+        alert("Error uploading signature: " + err.message);
+      }
+    });
+  }
+
+  const btnRemoveSignature = document.getElementById("btn-remove-signature");
+  if (btnRemoveSignature) {
+    btnRemoveSignature.addEventListener("click", () => {
+      const setBizSignaturePath = document.getElementById("set-biz-signature-path");
+      if (setBizSignaturePath) setBizSignaturePath.value = "";
+      updateSignaturePreviewUI("");
+      const setSignatureFileInput = document.getElementById("set-signature-file");
+      if (setSignatureFileInput) setSignatureFileInput.value = "";
+    });
+  }
+
   const btnSaveSettings = document.getElementById("btn-save-settings");
   if (btnSaveSettings) {
     btnSaveSettings.addEventListener("click", async () => {
@@ -3858,6 +4208,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const stateCode = document.getElementById("set-biz-state-code").value.trim();
       const address = document.getElementById("set-biz-address").value.trim();
       const logoPath = document.getElementById("set-biz-logo-path").value.trim();
+      const signature = document.getElementById("set-biz-signature") ? document.getElementById("set-biz-signature").value.trim() : "";
+      const signaturePath = document.getElementById("set-biz-signature-path") ? document.getElementById("set-biz-signature-path").value.trim() : "";
       
       if (!name) {
         alert("Business Name is required.");
@@ -3871,15 +4223,19 @@ document.addEventListener("DOMContentLoaded", () => {
       
       const apiEnabled = document.getElementById("set-api-enabled").checked ? "true" : "false";
       const apiKey = document.getElementById("set-api-key").value.trim();
+      const gstEnabled = document.getElementById("set-gst-enabled") ? (document.getElementById("set-gst-enabled").checked ? "true" : "false") : "true";
 
       const payload = {
         business_name: name,
         business_gstin: gstin,
+        gst_enabled: gstEnabled,
         business_state: state,
         business_state_code: stateCode,
         business_city: "",
         business_address: address,
         business_logo_path: logoPath,
+        business_signature: signature,
+        business_signature_path: signaturePath,
         api_enabled: apiEnabled,
         api_key: apiKey
       };

@@ -452,6 +452,9 @@ export function initSchema() {
   insertSetting.run("purchase_next_number", "1");
   insertSetting.run("api_enabled", "false");
   insertSetting.run("api_key", "");
+  insertSetting.run("business_signature", "");
+  insertSetting.run("business_signature_path", "");
+  insertSetting.run("gst_enabled", "true");
 
   // Seed default GST rates if empty
   const countRates = targetDb.query("SELECT COUNT(*) as count FROM gst_rates;").get() as { count: number };
@@ -789,6 +792,119 @@ export function createInvoice(inv: InvoicePayload, items: InvoiceItemPayload[]) 
 
     // 3. Atomically update the sequence index counter
     db.prepare("UPDATE settings SET value = CAST((CAST(value AS INTEGER) + 1) AS TEXT) WHERE key = 'invoice_next_number';").run();
+  });
+
+  return transaction();
+}
+
+export function updateInvoice(inv: InvoicePayload, items: InvoiceItemPayload[]) {
+  const transaction = db.transaction(() => {
+    const existing = db.query(`
+      SELECT invoice_number, status, grand_total,
+             COALESCE((SELECT SUM(amount) FROM payments WHERE invoice_number = invoices.invoice_number), 0) as paid_amount
+      FROM invoices
+      WHERE invoice_number = ?;
+    `).get(inv.id) as { invoice_number: string; status: string; grand_total: number; paid_amount: number } | null;
+
+    if (!existing) {
+      throw new Error(`Invoice ${inv.id} not found`);
+    }
+
+    const wasDeducted = DEDUCTIBLE_STATUSES.has(existing.status);
+
+    // If existing invoice was deductible, restore stock for previous items
+    if (wasDeducted) {
+      const oldItems = db.query(
+        "SELECT product_id, quantity FROM invoice_items WHERE invoice_number = ?;"
+      ).all(inv.id) as { product_id: string; quantity: number }[];
+
+      for (const item of oldItems) {
+        if (item.product_id) {
+          db.prepare("UPDATE products SET current_stock = current_stock + ? WHERE id = ?;").run(item.quantity, item.product_id);
+        }
+      }
+    }
+
+    // Determine status based on payments
+    let newStatus = inv.status || existing.status;
+    const paidAmount = Number(existing.paid_amount) || 0;
+    if (paidAmount > 0) {
+      if (paidAmount >= inv.grand_total) {
+        newStatus = "Paid";
+      } else {
+        newStatus = "Partially Paid";
+      }
+    } else if (newStatus === "Paid" || newStatus === "Partially Paid") {
+      newStatus = "Confirmed";
+    }
+
+    // Update invoice header
+    const updateInvStmt = db.prepare(`
+      UPDATE invoices SET
+        invoice_date = $invoice_date,
+        customer_id = $customer_id,
+        place_of_supply = $place_of_supply,
+        online_order_number = $online_order_number,
+        notes = $notes,
+        taxable_amount = $taxable_amount,
+        total_cgst = $total_cgst,
+        total_sgst = $total_sgst,
+        total_igst = $total_igst,
+        round_off = $round_off,
+        grand_total = $grand_total,
+        status = $status
+      WHERE invoice_number = $invoice_number;
+    `);
+
+    updateInvStmt.run({
+      $invoice_number: inv.id,
+      $invoice_date: inv.invoice_date,
+      $customer_id: inv.customer_id,
+      $place_of_supply: inv.place_of_supply,
+      $online_order_number: inv.online_order_number || null,
+      $notes: inv.notes || null,
+      $taxable_amount: inv.taxable_value,
+      $total_cgst: inv.cgst_amount,
+      $total_sgst: inv.sgst_amount,
+      $total_igst: inv.igst_amount,
+      $round_off: inv.round_off,
+      $grand_total: inv.grand_total,
+      $status: newStatus
+    });
+
+    // Delete existing items
+    db.prepare("DELETE FROM invoice_items WHERE invoice_number = ?;").run(inv.id);
+
+    // Insert new items
+    const insertItem = db.prepare(`
+      INSERT INTO invoice_items (invoice_number, product_id, description, hsn_sac_code, quantity, unit, rate, discount, taxable_value, gst_rate, cgst, sgst, igst, line_total)
+      VALUES ($invoice_number, $product_id, $description, $hsn_sac_code, $quantity, $unit, $rate, $discount, $taxable_value, $gst_rate, $cgst, $sgst, $igst, $line_total);
+    `);
+
+    const willDeduct = DEDUCTIBLE_STATUSES.has(newStatus);
+
+    for (const item of items) {
+      if (willDeduct && item.product_id) {
+        db.prepare("UPDATE products SET current_stock = current_stock - ? WHERE id = ?;").run(item.quantity, item.product_id);
+      }
+
+      insertItem.run({
+        $invoice_number: inv.id,
+        $product_id: item.product_id,
+        $description: item.product_name,
+        $hsn_sac_code: item.hsn_sac_code || null,
+        $quantity: item.quantity,
+        $unit: item.unit || "PCS",
+        $rate: item.unit_price,
+        $discount: 0.0,
+        $taxable_value: item.taxable_value,
+        $gst_rate: item.gst_rate,
+        $cgst: item.cgst_amount,
+        $sgst: item.sgst_amount,
+        $igst: item.igst_amount,
+        $line_total: item.total_amount
+      });
+    }
   });
 
   return transaction();
