@@ -126,10 +126,12 @@ describe("UI & UX Structural Validation Tests", () => {
       expect(jsContent).toContain("openEditInvoiceModal");
       expect(jsContent).toContain("editingInvoiceId");
 
-      // Share PDF logic
+      // Share PDF logic & Android share panel handling
       expect(jsContent).toContain('document.getElementById("btn-share-pdf")');
       expect(jsContent).toContain("navigator.share");
       expect(jsContent).toContain("navigator.canShare");
+      expect(jsContent).toContain("startBackgroundPdfGeneration");
+      expect(jsContent).toContain("intent:#Intent;action=android.intent.action.SEND");
 
       // GST conditional check and HSN summary visibility logic
       expect(jsContent).toContain("isGstActive");

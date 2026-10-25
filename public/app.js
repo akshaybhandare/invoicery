@@ -928,6 +928,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnEditPrintInvoice = document.getElementById("btn-edit-print-invoice");
   const btnSharePdf = document.getElementById("btn-share-pdf");
   let currentPrintInvoiceId = null;
+  let cachedPrintPdfBlob = null;
+  let cachedPrintPdfPromise = null;
 
   let cachedCustomers = [];
   let cachedProducts = [];
@@ -2245,8 +2247,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
       openModal("invoice-print-modal");
+      // Warm up background PDF generation so user activation is preserved when Share is tapped
+      setTimeout(startBackgroundPdfGeneration, 300);
     } catch (error) {
       alert(`Print Preview Error: ${error.message}`);
+    }
+  }
+
+  // Pre-generate / warm up PDF blob in background for instantaneous sharing and activation preservation
+  function startBackgroundPdfGeneration() {
+    cachedPrintPdfBlob = null;
+    const printArea = document.getElementById("print-area");
+    if (!printArea || typeof html2pdf === "undefined") return;
+
+    const invNumber = document.getElementById("print-inv-number")?.textContent.trim() || "INVOICE";
+    const safeFilename = `${invNumber.replace(/[^a-zA-Z0-9._-]/g, "_") || "INVOICE"}.pdf`;
+
+    const opt = {
+      margin: [8, 8, 8, 8],
+      filename: safeFilename,
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 1.5, useCORS: true, logging: false },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+    };
+
+    try {
+      cachedPrintPdfPromise = html2pdf().set(opt).from(printArea).outputPdf("blob").then(blob => {
+        cachedPrintPdfBlob = blob;
+        return blob;
+      }).catch(err => {
+        console.warn("Background PDF generation error:", err);
+        return null;
+      });
+    } catch (e) {
+      console.warn("Could not initiate background PDF generation:", e);
     }
   }
 
@@ -2257,29 +2291,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
   btnClosePrint.addEventListener("click", () => {
     closeModal("invoice-print-modal");
+    cachedPrintPdfBlob = null;
+    cachedPrintPdfPromise = null;
   });
 
   if (btnEditPrintInvoice) {
     btnEditPrintInvoice.addEventListener("click", () => {
       closeModal("invoice-print-modal");
+      cachedPrintPdfBlob = null;
+      cachedPrintPdfPromise = null;
       if (currentPrintInvoiceId) {
         openEditInvoiceModal(currentPrintInvoiceId);
       }
     });
   }
 
-  // Share PDF button handler — Web Share API with auto-download fallback
+  // Share PDF button handler — Multi-tier Web Share API with Android native Intent fallback
   if (btnSharePdf) {
     btnSharePdf.addEventListener("click", async () => {
       const originalText = btnSharePdf.textContent;
       const invNumber = document.getElementById("print-inv-number")?.textContent.trim() || "INVOICE";
-      const filename = `${invNumber}.pdf`;
+      const safeFilename = `${invNumber.replace(/[^a-zA-Z0-9._-]/g, "_") || "INVOICE"}.pdf`;
       const printArea = document.getElementById("print-area");
 
       if (!printArea) return;
 
       try {
-        btnSharePdf.textContent = "⏳ GENERATING PDF...";
+        btnSharePdf.textContent = "⏳ SHARING PDF...";
         btnSharePdf.disabled = true;
 
         if (typeof html2pdf === "undefined") {
@@ -2289,36 +2327,123 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        const opt = {
-          margin: [8, 8, 8, 8],
-          filename: filename,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-        };
+        // Obtain PDF blob (from background cache or generate on demand)
+        let pdfBlob = cachedPrintPdfBlob;
+        if (!pdfBlob) {
+          if (cachedPrintPdfPromise) {
+            pdfBlob = await cachedPrintPdfPromise;
+          }
+          if (!pdfBlob) {
+            const opt = {
+              margin: [8, 8, 8, 8],
+              filename: safeFilename,
+              image: { type: "jpeg", quality: 0.95 },
+              html2canvas: { scale: 1.5, useCORS: true, logging: false },
+              jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+            };
+            pdfBlob = await html2pdf().set(opt).from(printArea).outputPdf("blob");
+            cachedPrintPdfBlob = pdfBlob;
+          }
+        }
 
-        const pdfBlob = await html2pdf().set(opt).from(printArea).outputPdf("blob");
-        const pdfFile = new File([pdfBlob], filename, { type: "application/pdf" });
+        if (!pdfBlob) {
+          throw new Error("Unable to create invoice PDF document");
+        }
 
-        const shareData = {
-          title: `Invoice ${invNumber}`,
-          text: `Invoice ${invNumber} from ${cachedSettings.business_name || "My Business"}`,
-          files: [pdfFile]
-        };
+        const pdfFile = new File([pdfBlob], safeFilename, { 
+          type: "application/pdf",
+          lastModified: Date.now()
+        });
 
-        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-          await navigator.share(shareData);
-        } else {
-          // Native fallback: automatically download the generated PDF
+        const bizName = cachedSettings.business_name || "My Business";
+        const custName = document.getElementById("print-cust-name")?.textContent.trim() || "";
+        const grandTotal = document.getElementById("print-summary-grand-total")?.textContent.trim() || "";
+        const shareTitle = `Invoice ${invNumber} - ${bizName}`;
+        const shareText = `Invoice ${invNumber} from ${bizName}${custName && custName !== "—" ? ` for ${custName}` : ""}${grandTotal ? ` (Total: ${grandTotal})` : ""}`;
+
+        // Helper to trigger direct PDF download
+        const triggerDownload = () => {
           const downloadUrl = URL.createObjectURL(pdfBlob);
           const downloadLink = document.createElement("a");
           downloadLink.href = downloadUrl;
-          downloadLink.download = filename;
+          downloadLink.download = safeFilename;
           document.body.appendChild(downloadLink);
           downloadLink.click();
           document.body.removeChild(downloadLink);
           setTimeout(() => URL.revokeObjectURL(downloadUrl), 2000);
+        };
+
+        const isAndroid = /android/i.test(navigator.userAgent);
+
+        // Check if Web Share API with files is supported
+        let canShareFiles = false;
+        if (typeof navigator.share === "function") {
+          if (typeof navigator.canShare === "function") {
+            try {
+              canShareFiles = navigator.canShare({ files: [pdfFile] });
+            } catch (e) {
+              canShareFiles = false;
+            }
+          } else {
+            canShareFiles = true;
+          }
         }
+
+        // TIER 1: Native Web Share API with File attachment (Supported mobile browsers on HTTPS/localhost)
+        if (canShareFiles && typeof navigator.share === "function") {
+          // Attempt 1A: Full share with file + title + text
+          try {
+            await navigator.share({
+              title: shareTitle,
+              text: shareText,
+              files: [pdfFile]
+            });
+            return;
+          } catch (err) {
+            if (err.name === "AbortError") return; // User closed share sheet
+            console.warn("Full file share failed, retrying file-only share:", err);
+          }
+
+          // Attempt 1B: File-only share (some Android apps / vendors reject text+file combination)
+          try {
+            await navigator.share({
+              files: [pdfFile]
+            });
+            return;
+          } catch (err) {
+            if (err.name === "AbortError") return;
+            console.warn("File-only share failed, falling back:", err);
+          }
+        }
+
+        // TIER 2: Web Share API with Text/URL payload (Mobile browsers where file sharing is unsupported e.g. Firefox Android)
+        if (typeof navigator.share === "function") {
+          try {
+            triggerDownload();
+            await navigator.share({
+              title: shareTitle,
+              text: shareText
+            });
+            return;
+          } catch (err) {
+            if (err.name === "AbortError") return;
+            console.warn("Text share failed:", err);
+          }
+        }
+
+        // TIER 3: Android Intent Chooser (Opens native Android share panel on insecure HTTP / local network)
+        if (isAndroid) {
+          triggerDownload();
+          const intentUrl = `intent:#Intent;action=android.intent.action.SEND;type=text/plain;S.android.intent.extra.SUBJECT=${encodeURIComponent(shareTitle)};S.android.intent.extra.TEXT=${encodeURIComponent(shareText)};end`;
+          setTimeout(() => {
+            window.location.href = intentUrl;
+          }, 350);
+          return;
+        }
+
+        // TIER 4: Desktop / Non-Android fallback without Web Share API
+        triggerDownload();
+
       } catch (err) {
         if (err.name !== "AbortError") {
           console.error("Share PDF error:", err);
